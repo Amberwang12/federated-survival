@@ -1,0 +1,95 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "federated-survival"
+version = "0.2.0"
+description = "A federated learning framework for survival analysis with differential privacy support"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+keywords = ["federated learning", "survival analysis", "differential privacy", "machine learning", "healthcare"]
+authors = [
+    {name = "Wenjun Wang", email = "amber930422@163.com"}
+]
+maintainers = [
+    {name = "Wenjun Wang", email = "amber930422@163.com"}
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Medical Science Apps.",
+]
+
+dependencies = [
+    "numpy>=1.24.0",
+    "pandas>=2.0.0",
+    "torch>=2.0.0",
+    "scikit-learn>=1.3.0",
+    "sklearn-pandas>=2.2.0",
+    "lifelines>=0.27.0",
+    "pycox>=0.3.0",
+    "matplotlib>=3.7.0",
+    "scipy>=1.10.0",
+    "tqdm>=4.60.0",
+    "torchtuples>=0.2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "black>=23.0.0",
+    "flake8>=6.0.0",
+    "mypy>=1.0.0",
+]
+docs = [
+    "sphinx>=5.0.0",
+    "sphinx-rtd-theme>=1.2.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/Amberwang12/federated-survival"
+Documentation = "https://github.com/Amberwang12/federated-survival#readme"
+Repository = "https://github.com/Amberwang12/federated-survival"
+"Bug Tracker" = "https://github.com/Amberwang12/federated-survival/issues"
+
+[tool.setuptools]
+packages = ["federated_survival", "federated_survival.core", "federated_survival.data", "federated_survival.utils"]
+
+[tool.setuptools.package-data]
+federated_survival = ["*.txt", "*.md"]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q --strict-markers"
+testpaths = [
+    "tests",
+]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+
+[tool.black]
+line-length = 100
+target-version = ['py38', 'py39', 'py310', 'py311']
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.pytest_cache
+  | __pycache__
+  | build
+  | dist
+)/
+'''

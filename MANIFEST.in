@@ -1,0 +1,19 @@
+# Include important documentation files
+include README.md
+include LICENSE
+include setup.py
+include pyproject.toml
+
+# Include all Python files
+recursive-include federated_survival *.py
+
+# Exclude unnecessary files
+global-exclude __pycache__
+global-exclude *.py[cod]
+global-exclude .DS_Store
+global-exclude *.so
+global-exclude .pytest_cache
+
+# Exclude test files from the distribution
+prune tests
+prune .pytest_cache
