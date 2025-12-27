@@ -40,12 +40,11 @@ def main():
     sim_config = SimulationConfig(
         n_samples=1000,
         n_features=10,
-        censoring_rate=0.3,
         random_state=42
     )
     
     generator = DataGenerator(sim_config)
-    data = generator.generate('weibull')
+    data = generator.generate('weibull', c_mean=0.4)
     print(f"Base dataset shape: {data.shape}")
     print(f"Total samples: {data.shape[0]}")
     print()

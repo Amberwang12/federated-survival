@@ -53,7 +53,6 @@ def test_data_generation():
     sim_config = SimulationConfig(
         n_samples=config.n_samples,
         n_features=config.n_features,
-        censoring_rate=config.censor_rate,
         random_state=config.random_seed
     )
     generator = DataGenerator(sim_config)
@@ -99,7 +98,6 @@ def test_dp_integration():
     sim_config = SimulationConfig(
         n_samples=config.n_samples,
         n_features=config.n_features,
-        censoring_rate=config.censor_rate,
         random_state=config.random_seed
     )
     generator = DataGenerator(sim_config)

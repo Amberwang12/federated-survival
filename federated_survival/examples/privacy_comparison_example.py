@@ -123,12 +123,11 @@ def main():
     sim_config = SimulationConfig(
         n_samples=temp_config.n_samples,
         n_features=temp_config.n_features,
-        censoring_rate=temp_config.censor_rate,
         random_state=temp_config.random_seed
     )
     generator = DataGenerator(sim_config)
-    raw_data = generator.generate('weibull')
-    
+    raw_data = generator.generate('weibull', c_mean=0.4)
+
     # 分割数据为联邦学习格式
     splitter = DataSplitter(
         n_clients=temp_config.num_clients,

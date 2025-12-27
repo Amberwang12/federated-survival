@@ -41,7 +41,6 @@ from federated_survival.data.generator import DataGenerator, SimulationConfig
 sim_config = SimulationConfig(
     n_samples=100,      # Number of samples
     n_features=10,      # Number of features
-    censoring_rate=0.2, # Rate of censored observations
     random_state=42     # Random seed for reproducibility
 )
 
@@ -56,16 +55,16 @@ generator = DataGenerator(config=sim_config)
 
 # Generate data with different simulation types:
 # 1. Accelerated Failure Time (AFT) Models:
-data_weibull = generator.generate('weibull')    # Weibull AFT model
-data_lognormal = generator.generate('lognormal') # Lognormal AFT model
+data_weibull = generator.generate('weibull', c_mean=0.4)    # Weibull AFT model
+data_lognormal = generator.generate('lognormal', c_mean=0.4) # Lognormal AFT model
 
 # 2. Proportional Hazards Models:
-data_sdgm1 = generator.generate('SDGM1')  # Standard proportional hazards
-data_sdgm4 = generator.generate('SDGM4')  # Proportional hazards with log-normal errors
+data_sdgm1 = generator.generate('SDGM1', c_mean=0.4)  # Standard proportional hazards
+data_sdgm4 = generator.generate('SDGM4', u_max=4)  # Proportional hazards with log-normal errors
 
 # 3. Non-Proportional Hazards Models:
-data_sdgm2 = generator.generate('SDGM2')  # Mild violations of proportional hazards
-data_sdgm3 = generator.generate('SDGM3')  # Strong violations of proportional hazards
+data_sdgm2 = generator.generate('SDGM2', u_max=7)  # Mild violations of proportional hazards
+data_sdgm3 = generator.generate('SDGM3', c_step=0.4)  # Strong violations of proportional hazards
 ```
 
 The generated data includes:

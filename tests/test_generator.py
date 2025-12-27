@@ -9,14 +9,12 @@ def test_generator_initialization():
     generator = DataGenerator()
     assert generator.config.n_samples == 200
     assert generator.config.n_features == 15
-    assert generator.config.censoring_rate == 0.4
     
     # 使用自定义配置
-    config = SimulationConfig(n_samples=100, n_features=10, censoring_rate=0.3, random_state=42)
+    config = SimulationConfig(n_samples=100, n_features=10, random_state=42)
     generator = DataGenerator(config)
     assert generator.config.n_samples == 100
     assert generator.config.n_features == 10
-    assert generator.config.censoring_rate == 0.3
 
 def test_data_structure():
     """测试生成的数据结构"""
@@ -24,7 +22,7 @@ def test_data_structure():
     
     # 测试所有支持的数据类型
     for sim_type in ['weibull', 'lognormal', 'SDGM1', 'SDGM2', 'SDGM3', 'SDGM4']:
-        data = generator.generate(sim_type)
+        data = generator.generate(sim_type, c_mean=0.4, u_max=4, c_step=0.4)
         
         # 检查返回类型
         assert isinstance(data, pd.DataFrame)
@@ -42,16 +40,6 @@ def test_data_structure():
         assert data['status'].isin([0, 1]).all()
         assert (data['time'] >= 0).all()
 
-def test_censoring_rate():
-    """测试删失率"""
-    generator = DataGenerator()
-    
-    for sim_type in ['weibull', 'lognormal', 'SDGM1', 'SDGM2', 'SDGM3', 'SDGM4']:
-        data = generator.generate(sim_type)
-        actual_censoring_rate = 1 - data['status'].mean()
-        # 允许一定的误差范围
-        assert abs(actual_censoring_rate - generator.config.censoring_rate) < 0.2
-
 def test_random_state():
     """测试随机种子"""
     config = SimulationConfig(random_state=42)
@@ -59,8 +47,8 @@ def test_random_state():
     generator2 = DataGenerator(config)
     
     for sim_type in ['weibull', 'lognormal', 'SDGM1', 'SDGM2', 'SDGM3', 'SDGM4']:
-        data1 = generator1.generate(sim_type)
-        data2 = generator2.generate(sim_type)
+        data1 = generator1.generate(sim_type, c_mean=0.4, u_max=4, c_step=0.4)
+        data2 = generator2.generate(sim_type, c_mean=0.4, u_max=4, c_step=0.4)
         
         # 使用相同的随机种子应该生成相同的数据
         pd.testing.assert_frame_equal(data1, data2)
@@ -77,16 +65,16 @@ def test_data_distribution():
     generator = DataGenerator()
     
     # 测试SDGM2的均匀分布特征
-    data = generator.generate('SDGM2')
+    data = generator.generate('SDGM2', u_max=4)
     for i in range(generator.config.n_features):
         assert (data[f'x{i+1}'] >= 0).all() and (data[f'x{i+1}'] <= 1).all()
     
     # 测试SDGM3的伽马分布生存时间
-    data = generator.generate('SDGM3')
+    data = generator.generate('SDGM3', u_max=7)
     assert (data['time'] > 0).all()
     
     # 测试SDGM4的对数正态分布
-    data = generator.generate('SDGM4')
+    data = generator.generate('SDGM4', c_step=0.4)
     assert (data['time'] > 0).all()
 
 if __name__ == '__main__':

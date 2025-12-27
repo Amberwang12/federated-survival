@@ -38,11 +38,10 @@ def test_data():
     sim_config = SimulationConfig(
         n_samples=100,
         n_features=10,
-        censoring_rate=0.2,
         random_state=42
     )
     generator = DataGenerator(config=sim_config)
-    data = generator.generate('weibull')
+    data = generator.generate('weibull', c_mean=0.4)
 
     # 划分数据
     splitter = DataSplitter(
@@ -62,7 +61,7 @@ def mock_data():
         n_features=10,
     )
     generator = DataGenerator(config=sim_config)
-    data = generator.generate('weibull')
+    data = generator.generate('weibull', c_mean=0.4)
     return data
 
 def test_runner_initialization(config, test_data):
@@ -192,7 +191,6 @@ def test_run_with_different_split_methods(config):
     sim_config = SimulationConfig(
         n_samples=100,
         n_features=10,
-        censoring_rate=0.3,
         random_state=42
     )
     generator = DataGenerator(config=sim_config)

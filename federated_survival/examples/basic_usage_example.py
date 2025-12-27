@@ -20,7 +20,6 @@ def main():
     sim_config = SimulationConfig(
         n_samples=1000,      # Number of samples
         n_features=10,       # Number of features
-        censoring_rate=0.2,  # Rate of censored observations
         random_state=42      # Random seed for reproducibility
     )
     
@@ -29,7 +28,7 @@ def main():
     generator = DataGenerator(sim_config)
     
     # Generate data with Weibull AFT model
-    data_weibull = generator.generate('weibull')
+    data_weibull = generator.generate('weibull', c_mean=0.4)
     print(f"  Generated Weibull data: {data_weibull.shape}")
     
     # Step 3: Partition data for federated learning

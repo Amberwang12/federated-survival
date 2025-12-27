@@ -43,7 +43,6 @@ def main():
     sim_config = SimulationConfig(
         n_samples=500,
         n_features=10,
-        censoring_rate=0.3,
         random_state=42
     )
     

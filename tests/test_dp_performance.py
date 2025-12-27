@@ -33,11 +33,10 @@ class TestDPPerformance(unittest.TestCase):
         sim_config = SimulationConfig(
             n_samples=self.config.n_samples,
             n_features=self.config.n_features,
-            censoring_rate=self.config.censor_rate,
             random_state=self.config.random_seed
         )
         generator = DataGenerator(sim_config)
-        raw_data = generator.generate('weibull')
+        raw_data = generator.generate('weibull', c_mean=0.4)
         
         # 转换为联邦学习格式
         splitter = DataSplitter(

@@ -29,11 +29,10 @@ def generate_data(n_samples=1000, n_features=20, num_clients=5):
     sim_config = SimulationConfig(
         n_samples=n_samples,
         n_features=n_features,
-        censoring_rate=0.3,
         random_state=42
     )
     generator = DataGenerator(sim_config)
-    raw_data = generator.generate('weibull')
+    raw_data = generator.generate('weibull', c_mean=0.4)
     
     splitter = DataSplitter(
         n_clients=num_clients,

@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="federated-survival",
-    version="0.2.0",
+    version="0.4.0",
     author="Wenjun Wang",
     author_email="amber930422@163.com",
     description="A federated learning framework for survival analysis",
