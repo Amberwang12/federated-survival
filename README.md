@@ -270,7 +270,6 @@ config = FSAConfig(
     num_clients=3,           # Number of federated learning clients
     n_features=10,           # Number of features
     n_samples=100,           # Number of samples
-    censor_rate=0.3,         # Censoring rate
     model_type='PC-Hazard',  # Survival model type
     local_epochs=2,          # Number of local training epochs
     global_epochs=2,         # Number of global communication rounds

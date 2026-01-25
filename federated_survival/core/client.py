@@ -110,38 +110,16 @@ class Client:
                 verbose=False
             )
         
-        # 如果启用差分隐私，对梯度应用差分隐私保护
+        # 如果启用差分隐私，对更新后的权重应用差分隐私保护
         if self.dp_tool is not None:
-            # 保存训练后的模型权重快照（应用DP前）
-            weights_before_dp = {name: param.clone().detach() 
-                                for name, param in local_model.net.state_dict().items()}
-            # print(weights_before_dp)
+            # 获取训练后的模型权重
+            weights = local_model.net.state_dict()
             
-            # 应用差分隐私，使用配置中指定的机制
-            mechanism = self.config.dp_mechanism if hasattr(self.config, 'dp_mechanism') else 'gaussian'
-            self.dp_tool.apply_dp_to_gradients(local_model.net, optimizer, mechanism=mechanism)
+            # 对权重添加差分隐私噪声 - 传递总客户端数量
+            noisy_weights = self.dp_tool.add_noise_to_weights(weights, num_clients=self.config.num_clients)
             
-            # # 检查权重是否发生变化（应用DP后）
-            # weights_after_dp = local_model.net.state_dict()
-            
-            # # 计算权重差异
-            # total_diff = 0.0
-            # param_count = 0
-            # for name in weights_before_dp.keys():
-            #     diff = torch.sum(torch.abs(weights_after_dp[name] - weights_before_dp[name])).item()
-            #     total_diff += diff
-            #     param_count += weights_after_dp[name].numel()
-            
-            # avg_diff = total_diff / param_count if param_count > 0 else 0.0
-            
-            # if epoch == 0:  # 只在第一轮打印
-            #     print(f"\n[Client {self.client_id}] 差分隐私检查:")
-            #     print(f"  训练后应用DP前后权重平均差异: {avg_diff:.10f}")
-            #     print(f"  总参数数量: {param_count}")
-            #     if avg_diff == 0.0:
-            #         print(f"  ⚠️ 警告: 权重没有变化，差分隐私可能未生效！")
-            #     else:
-            #         print(f"  ✓ 权重已改变，DP噪声已添加")
-            
+            # 更新模型权重
+            local_model.net.load_state_dict(noisy_weights)
+        
         # 返回训练后的模型
         return local_model.net.eval() 

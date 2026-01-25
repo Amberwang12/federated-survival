@@ -5,8 +5,10 @@ from sklearn.model_selection import train_test_split
 
 
 class DataSet(NamedTuple):
-    """数据集，包含clients_set、test_data、test_label和raw_aug_clients_set"""
+    """数据集，包含clients_set、train_data、train_label、test_data、test_label和raw_aug_clients_set"""
     clients_set: Dict[str, Tuple[np.ndarray, np.ndarray]]
+    train_data: np.ndarray
+    train_label: np.ndarray
     test_data: np.ndarray
     test_label: np.ndarray
     raw_aug_clients_set: Dict[str, Tuple[np.ndarray, np.ndarray]]
@@ -71,7 +73,13 @@ class DataSplitter:
         elif self.split_type == 'non-iid':
             client_data = self._split_non_iid(train_data)
         elif self.split_type == 'Dirichlet':
-            client_data = self._split_Dirichlet(train_data)
+            # 使用类属性作为默认参数值
+            client_data = self._split_Dirichlet(
+                train_data, 
+                num_of_clients=self.n_clients, 
+                beta=self.alpha, 
+                n_time_bins=5  # 默认使用5个时间分箱
+            )
         else:  # time-non-iid
             client_data = self._split_time_non_iid(train_data)
         
@@ -84,6 +92,10 @@ class DataSplitter:
             y = client_train_data[['time', 'status']].values
             clients_set[f'client{client_id}'] = (X, y)
         
+        # 准备训练数据
+        train_X = train_data[feature_cols].values
+        train_y = train_data[['time', 'status']].values
+        
         # 准备测试数据
         test_X = test_data[feature_cols].values
         test_y = test_data[['time', 'status']].values
@@ -93,6 +105,8 @@ class DataSplitter:
         
         return DataSet(
             clients_set=clients_set,
+            train_data=train_X,
+            train_label=train_y,
             test_data=test_X,
             test_label=test_y,
             raw_aug_clients_set=raw_aug_clients_set
@@ -137,36 +151,80 @@ class DataSplitter:
         return client_data
 
 
-    def _split_Dirichlet(self, data: pd.DataFrame) -> Dict[int, pd.DataFrame]:
-        """Non-IID划分方式，使用狄利克雷分布, 测试中"""
-        # 获取特征列
-        feature_cols = [col for col in data.columns if col not in ['time', 'status']]
+    def _split_Dirichlet(self, data: pd.DataFrame, num_of_clients: int, beta: float, n_time_bins: int) -> Dict[int, pd.DataFrame]:
+        """
+        基于时间分箱 + 事件状态的复合类别狄利克雷 Non-IID 划分。
+        将 time 分为 n_time_bins 个区间，与 status (0/1) 组合成 n_time_bins * 2 个伪类别。
+        对每个伪类别独立应用 Dirichlet(beta) 分配，实现时间+事件双重异质性。
         
-        # 对每个特征进行狄利克雷分布采样
-        n_features = len(feature_cols)
-        proportions = np.random.dirichlet([self.alpha] * self.n_clients, size=n_features)
-        
-        # 对每个样本分配客户端
-        client_indices = [[] for _ in range(self.n_clients)]
-        for i, sample in data.iterrows():
-            # 计算每个客户端对该样本的权重
-            weights = np.ones(self.n_clients)
-            for j, col in enumerate(feature_cols):
-                feature_value = sample[col]
-                # 根据特征值的大小调整权重
-                feature_weights = proportions[j] * (1 + np.abs(feature_value))
-                weights *= feature_weights
+        Args:
+            data (pd.DataFrame): 包含 'time' 和 'status' 列的数据框。
+            num_of_clients (int): 客户端数量
+            beta (float): Dirichlet 分布的 concentration 参数（越小越 Non-IID）
+            n_time_bins (int): 时间分箱数量（建议 3~5）
             
-            # 归一化权重并选择客户端
-            weights = weights / weights.sum()
-            client_id = np.random.choice(self.n_clients, p=weights)
-            client_indices[client_id].append(i)
+        Returns:
+            Dict[int, pd.DataFrame]: 键为客户端ID，值为分配给该客户端的子数据框。
+        """
+        # 1. 对时间列进行分箱
+        data = data.copy()
+        data['time_bin'] = pd.cut(data['time'], bins=n_time_bins, labels=False)
         
-        # 创建客户端数据
+        # 2. 生成复合伪类别：time_bin * 2 + status
+        data['pseudo_label'] = data['time_bin'] * 2 + data['status'].astype(int)
+        
+        # 3. 获取所有唯一的伪类别
+        pseudo_labels = data['pseudo_label'].values
+        unique_pseudo_labels = np.sort(data['pseudo_label'].unique())
+        n_pseudo_labels = len(unique_pseudo_labels)
+        
+        # 4. 为每个伪类别从狄利克雷分布采样分配比例
+        #    shape: (n_pseudo_labels, num_of_clients)
+        pseudo_label_proportions = np.random.dirichlet(
+            alpha=[beta] * num_of_clients,
+            size=n_pseudo_labels
+        )
+
+        # 5. 初始化每个客户端的索引列表
+        client_indices = [[] for _ in range(num_of_clients)]
+
+        # 6. 遍历每个伪类别，分配其对应的样本
+        for pl_idx, pl_value in enumerate(unique_pseudo_labels):
+            # 找到属于当前伪类别的所有样本索引
+            pl_mask = (pseudo_labels == pl_value)
+            pl_sample_indices = np.where(pl_mask)[0]
+            n_pl_samples = len(pl_sample_indices)
+
+            # 如果该伪类别没有样本，则跳过
+            if n_pl_samples == 0:
+                continue
+
+            # 获取该伪类别分配给各客户端的比例
+            proportions = pseudo_label_proportions[pl_idx]
+
+            # 使用多项式分布，根据比例将样本数量分配给各个客户端
+            # 这确保了分配是离散的且总和等于样本总数
+            assigned_counts = np.random.multinomial(n_pl_samples, proportions)
+
+            # 随机打乱当前伪类别的样本索引，以保证随机性
+            np.random.shuffle(pl_sample_indices)
+
+            # 根据分配的数量，将样本索引切分并分配给各个客户端
+            start = 0
+            for client_id, count in enumerate(assigned_counts):
+                if count > 0:
+                    end = start + count
+                    client_indices[client_id].extend(pl_sample_indices[start:end])
+                    start = end
+
+        # 7. 根据收集到的索引，构建每个客户端的数据字典
         client_data = {}
-        for i in range(self.n_clients):
-            client_data[i] = data.loc[client_indices[i]].copy()
-        
+        for client_id in range(num_of_clients):
+            # 从数据中获取分配给该客户端的样本，并删除临时列
+            client_samples = data.iloc[client_indices[client_id]].copy()
+            client_samples = client_samples.drop(columns=['time_bin', 'pseudo_label'])
+            client_data[client_id] = client_samples.reset_index(drop=True)
+
         return client_data
     
     def _split_time_non_iid(self, data: pd.DataFrame) -> Dict[int, pd.DataFrame]:

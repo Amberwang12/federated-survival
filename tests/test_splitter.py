@@ -111,9 +111,14 @@ def test_dirichlet_split():
     
     splitter = DataSplitter(n_clients=5, split_type='Dirichlet', alpha=0.5, random_state=42)
     result = splitter.split(data)
-    
+    # 输出每个客户端的时间范围
+    for client_id, (_, y) in result.clients_set.items():
+        times = y[:, 0]
+        print(f"Client {client_id}: Time range = [{times.min():.2f}, {times.max():.2f}]")
+
     # 检查每个客户端的样本数
     total_samples = sum(X.shape[0] for X, _ in result.clients_set.values())
+
     assert total_samples == int(n_samples * 0.8)  # 80%用于训练
 
 def test_invalid_split_type():

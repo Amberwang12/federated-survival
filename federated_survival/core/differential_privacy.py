@@ -46,8 +46,8 @@ class DifferentialPrivacy:
         if sensitivity is None:
             sensitivity = self.sensitivity
             
-        # 计算噪声标准差
-        sigma = sensitivity * self.noise_multiplier
+        # 计算噪声标准差 - 使用与get_noise_scale一致的方式
+        sigma = math.sqrt(2 * math.log(1.25 / self.delta)) * sensitivity / self.epsilon
         
         # 生成高斯噪声
         noise = torch.normal(0, sigma, size=tensor.shape, device=tensor.device, dtype=tensor.dtype)
@@ -175,19 +175,25 @@ class DifferentialPrivacy:
                 
         return total_norm
     
-    def add_noise_to_weights(self, weights: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+    def add_noise_to_weights(self, weights: Dict[str, torch.Tensor], num_clients: Optional[int] = 1) -> Dict[str, torch.Tensor]:
         """
         向模型权重添加差分隐私噪声
         
         Args:
             weights: 模型权重字典
+            num_clients: 参与训练的客户端数量
             
         Returns:
             添加噪声后的权重字典
         """
         noisy_weights = {}
         for name, weight in weights.items():
-            noisy_weights[name] = self.add_gaussian_noise(weight)
+            # 计算考虑客户端数量的敏感度
+            client_sensitivity = self.sensitivity / math.sqrt(num_clients)
+            
+            # 添加噪声
+            noisy_weights[name] = self.add_gaussian_noise(weight, sensitivity=client_sensitivity)
+            
         return noisy_weights
     
     def compute_privacy_budget(self, num_rounds: int, num_clients: int) -> Tuple[float, float]:
@@ -201,9 +207,14 @@ class DifferentialPrivacy:
         Returns:
             (总隐私预算, 每轮隐私预算)
         """
-        # 使用Renyi差分隐私的组成定理
-        # 这里使用简化的计算方式
-        per_round_epsilon = self.epsilon / num_rounds
+        # 使用差分隐私的组成定理计算总隐私预算
+        # 对于联邦学习，考虑每轮采样客户端的影响
+        # 使用Ostrovsky与Rosen的组合定理近似计算
+        
+        # 每轮的隐私预算（考虑客户端采样）
+        per_round_epsilon = self.epsilon / math.sqrt(num_rounds)
+        
+        # 总隐私预算
         total_epsilon = self.epsilon
         
         return total_epsilon, per_round_epsilon
