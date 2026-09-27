@@ -1,0 +1,75 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  github-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # Full history so that the generated-notes fallback can find the
+          # previous tag and the commits since it.
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install build tooling
+        run: python -m pip install --upgrade build twine
+
+      - name: Build sdist and wheel
+        run: python -m build
+
+      - name: Validate distribution metadata and README
+        run: python -m twine check --strict dist/*
+
+      - name: Check that the tag matches the packaged version
+        run: |
+          version=$(python - <<'PY'
+          import tomllib
+          print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])
+          PY
+          )
+          tag="${GITHUB_REF_NAME#v}"
+          echo "pyproject.toml version: $version"
+          echo "tag version:            $tag"
+          if [ "$version" != "$tag" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match the pyproject.toml version $version"
+            exit 1
+          fi
+
+      - name: Record artifact checksums
+        run: |
+          cd dist
+          sha256sum ./* > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Publish the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          # Curated notes live in .github/releases/<tag>.md; when no file exists
+          # for this tag, fall back to GitHub's commit-generated notes.
+          notes=".github/releases/${tag}.md"
+          if [ -f "$notes" ]; then
+            echo "using curated notes from $notes"
+            gh release create "$tag" dist/* \
+              --verify-tag \
+              --title "federated-survival ${tag#v}" \
+              --notes-file "$notes"
+          else
+            echo "no $notes, falling back to generated notes"
+            gh release create "$tag" dist/* \
+              --verify-tag \
+              --title "federated-survival ${tag#v}" \
+              --generate-notes
+          fi

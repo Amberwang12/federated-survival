@@ -27,8 +27,10 @@ and are not precomputed user results.
    `federated-survival doctor`.
 6. Optionally upload to TestPyPI and test installation there.
 7. Upload the unchanged, validated archives to production PyPI.
-8. Push the same source revision and version tag to GitHub, then create a
-   GitHub Release with concise release notes.
+8. Push the source revision to GitHub, then push the version tag. The
+   `Release` workflow rebuilds the archives from the tagged revision and
+   publishes them as a GitHub Release, so released assets are never taken from
+   a local `dist/` directory.
 
 ```bash
 python -m pip install --upgrade build twine
@@ -58,6 +60,27 @@ long-lived upload token.
 PyPI does not permit replacing files for an existing version. If anything in
 an uploaded release must change, increment the package version, rebuild, and
 upload the new version.
+
+## GitHub Releases
+
+`.github/workflows/release.yml` runs when a tag matching `v*` is pushed. It
+rebuilds the source distribution and wheel from the tagged revision, validates
+them with `twine check --strict`, checks that the tag matches the version in
+`pyproject.toml`, writes `SHA256SUMS`, and then publishes a GitHub Release with
+all three files attached.
+
+```bash
+git tag -a v0.7.0 -m "federated-survival 0.7.0"
+git push origin v0.7.0
+```
+
+Release notes come from `.github/releases/<tag>.md` when that file exists;
+write one for each release. If no file exists for the tag, the workflow falls
+back to GitHub's commit-generated notes. The workflow declares the
+`contents: write` permission it needs, so no extra secret is required.
+
+Tag a revision only after CI is green for it. The release job packages and
+publishes; it does not repeat the test matrix.
 
 Official references:
 
