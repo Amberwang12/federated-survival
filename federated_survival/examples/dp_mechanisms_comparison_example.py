@@ -1,7 +1,9 @@
 """
-Differential Privacy Mechanisms Comparison Example
+Legacy Perturbation Utilities Comparison (not an end-to-end DP guarantee)
 
-This example demonstrates the three main differential privacy mechanisms:
+This example demonstrates legacy noise/selection utilities. The federated
+training path has no per-example clipping or multi-round accountant, so the
+epsilon/delta inputs must not be reported as a record-level DP guarantee:
 1. Gaussian Mechanism (高斯机制) - for (ε,δ)-differential privacy
 2. Laplace Mechanism (拉普拉斯机制) - for ε-differential privacy  
 3. Exponential Mechanism (指数机制) - for non-numeric outputs

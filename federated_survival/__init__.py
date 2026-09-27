@@ -1,16 +1,66 @@
+from . import _compat as _compat  # noqa: F401
 from .core import FSAConfig, FSARunner
-from .data import DataGenerator, SimulationConfig, DataLoader, DataSplitter
+from .api import FederatedSurvival
+from .experiment_api import ExperimentResult, compare_experiments, compare_methods
+from .data import (
+    augment_clients,
+    DataGenerator,
+    DataLoader,
+    DataSplitter,
+    SimulationConfig,
+    load_data,
+    partition_data,
+    partition_data_many,
+    plot_partition,
+    plot_augmentation_comparison,
+    summarize_augmentation,
+    simulate_data,
+)
+from .models import (
+    ModelAdapter,
+    available_model_adapters,
+    get_model_adapter,
+    register_model_adapter,
+)
+from .protocols import (
+    FederatedProtocol,
+    ProtocolCapabilities,
+    available_federated_protocols,
+    get_federated_protocol,
+    register_federated_protocol,
+)
 from .utils import calculate_cindex, calculate_ibs
 
-__version__ = '0.1.0'
+__version__ = "0.7.0"
 
 __all__ = [
-    'FSAConfig',
-    'FSARunner',
-    'DataGenerator',
-    'SimulationConfig',
-    'DataLoader',
-    'DataSplitter',
-    'calculate_cindex',
-    'calculate_ibs'
-] 
+    "FSAConfig",
+    "FSARunner",
+    "FederatedSurvival",
+    "ExperimentResult",
+    "compare_methods",
+    "compare_experiments",
+    "DataGenerator",
+    "SimulationConfig",
+    "DataLoader",
+    "DataSplitter",
+    "simulate_data",
+    "load_data",
+    "partition_data",
+    "partition_data_many",
+    "plot_partition",
+    "augment_clients",
+    "summarize_augmentation",
+    "plot_augmentation_comparison",
+    "calculate_cindex",
+    "calculate_ibs",
+    "ModelAdapter",
+    "available_model_adapters",
+    "get_model_adapter",
+    "register_model_adapter",
+    "FederatedProtocol",
+    "ProtocolCapabilities",
+    "available_federated_protocols",
+    "get_federated_protocol",
+    "register_federated_protocol",
+]

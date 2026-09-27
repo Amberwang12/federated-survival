@@ -28,6 +28,7 @@ venv/
 ENV/
 env/
 .venv
+.venv*/
 
 # IDE
 .vscode/
@@ -47,6 +48,8 @@ htmlcov/
 .cache
 nosetests.xml
 coverage.xml
+software_validation/*.xml
+results/
 *.log
 
 # Jupyter Notebook
@@ -66,3 +69,24 @@ dmypy.json
 # *.pkl
 # *.h5
 # data/
+
+# ---------------------------------------------------------------------------
+# 本地保护规则（非发行内容，禁止提交）
+# ---------------------------------------------------------------------------
+# 发布物压缩包：单文件可达数百 MB，超过 GitHub 100MB 上限会导致 push 被拒
+*.zip
+*.7z
+
+# PyPI 上传凭据，绝不入库
+.pypirc
+
+# 智能体本地记忆与工具产物
+.workbuddy/
+.archify/
+.visual-check/
+
+# mkdocs 构建输出
+site/
+
+# 本包的本地解压副本，防止被误加
+federated-survival-v0.7.0-software-paper/

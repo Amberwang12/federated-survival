@@ -1,0 +1,30 @@
+site_name: federated-survival
+site_description: Extensible software for multi-model federated survival analysis
+site_url: https://amberwang12.github.io/federated-survival/
+repo_url: https://github.com/Amberwang12/federated-survival
+theme:
+  name: material
+nav:
+  - Home: index.md
+  - Quickstart: quickstart.md
+  - Composable Python experiments: interactive-experiments.md
+  - Augmentation and privacy calls: augmentation-privacy.md
+  - Configuration-driven experiments: configuration.md
+  - Model adapters: model-adapters.md
+  - Federated protocols: federated-protocols.md
+  - Reproducibility: reproducibility.md
+  - Releasing: releasing.md
+  - Privacy scope: privacy.md
+  - API reference: api.md
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            show_source: true
+            members_order: source
+markdown_extensions:
+  - admonition
+  - pymdownx.superfences
+strict: true

@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from federated_survival.core.config import FSAConfig
 from federated_survival.core.runner import FSARunner
 
-def test_plot():
+def test_plot(tmp_path):
     """测试绘图功能"""
     # 创建模拟数据
     n_epochs = 50
@@ -47,7 +47,9 @@ def test_plot():
     runner = FSARunner(config)
     
     # 调用绘图函数
-    runner.plot_results(results)
+    output = tmp_path / 'training_metrics.png'
+    figure = runner.plot_results(results, output_path=output, show=False)
+    assert output.exists()
+    assert len(figure.axes) == 2
+    plt.close(figure)
 
-if __name__ == '__main__':
-    test_plot() 

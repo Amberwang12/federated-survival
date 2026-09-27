@@ -121,6 +121,38 @@ def test_dirichlet_split():
 
     assert total_samples == int(n_samples * 0.8)  # 80%用于训练
 
+
+def test_dirichlet_split_repairs_zero_event_clients():
+    """Cox-compatible Dirichlet partitions must retain one event per client."""
+    rng = np.random.RandomState(3)
+    n_samples = 200
+    data = pd.DataFrame({
+        'x1': rng.randn(n_samples),
+        'x2': rng.randn(n_samples),
+        'time': rng.exponential(size=n_samples),
+        'status': np.r_[np.ones(30), np.zeros(n_samples - 30)],
+    })
+    result = DataSplitter(
+        n_clients=5, split_type='dirichlet', alpha=0.05, random_state=0
+    ).split(data)
+    assert all(y[:, 1].sum() >= 1 for _, y in result.clients_set.values())
+    assert sum(len(x) for x, _ in result.clients_set.values()) == 160
+
+
+def test_split_rejects_fewer_training_events_than_clients():
+    rng = np.random.RandomState(4)
+    n_samples = 50
+    data = pd.DataFrame({
+        'x1': rng.randn(n_samples),
+        'x2': rng.randn(n_samples),
+        'time': rng.exponential(size=n_samples),
+        'status': np.r_[np.ones(5), np.zeros(n_samples - 5)],
+    })
+    with pytest.raises(ValueError, match='events .* fewer than clients'):
+        DataSplitter(
+            n_clients=5, split_type='dirichlet', alpha=0.5, random_state=0
+        ).split(data)
+
 def test_invalid_split_type():
     """测试无效的划分类型"""
     n_samples = 1000

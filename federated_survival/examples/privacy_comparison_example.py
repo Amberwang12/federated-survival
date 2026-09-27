@@ -1,7 +1,8 @@
 """
-差分隐私效果对比示例
+历史更新扰动效果对比示例（不提供端到端差分隐私保证）
 
-本示例对比有无差分隐私保护下的联邦学习性能差异。
+本示例对比有无客户端更新扰动时的性能差异。当前实现没有逐样本裁剪和跨轮次
+accountant，epsilon/delta 参数不能解释为 record-level DP 保证。
 """
 import matplotlib.pyplot as plt
 import numpy as np
@@ -18,11 +19,11 @@ def run_experiment(config, data, experiment_name):
     # 获取隐私信息
     privacy_info = runner.get_privacy_info()
     if privacy_info["privacy_protection"]:
-        print("差分隐私保护已启用（仅在客户端本地训练时应用）")
-        print(f"隐私预算 (ε): {privacy_info['epsilon']}")
+        print("实验性客户端更新扰动已启用（不构成端到端 DP 保证）")
+        print(f"遗留 epsilon 参数: {privacy_info['epsilon']}")
         print(f"噪声规模: {privacy_info['noise_scale']:.6f}")
     else:
-        print("差分隐私保护未启用")
+        print("客户端更新扰动未启用")
     
     # 运行训练
     results = runner.run(data, type='raw')

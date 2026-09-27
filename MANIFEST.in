@@ -1,19 +1,26 @@
-# Include important documentation files
 include README.md
+include PACKAGE_STRUCTURE.md
 include LICENSE
 include setup.py
 include pyproject.toml
+include mkdocs.yml
 
-# Include all Python files
 recursive-include federated_survival *.py
+recursive-include federated_survival/examples *.md *.json *.yaml
+recursive-include experiments *.py
+recursive-include tests *.py *.md
+recursive-include docs *.md
 
-# Exclude unnecessary files
+exclude requirements-paper-figure2-lock.txt
+recursive-exclude data *.csv
+recursive-exclude federated_survival/data/real *.csv
+
 global-exclude __pycache__
 global-exclude *.py[cod]
 global-exclude .DS_Store
 global-exclude *.so
 global-exclude .pytest_cache
+global-exclude *.xml
 
-# Exclude test files from the distribution
-prune tests
 prune .pytest_cache
+prune results

@@ -1,0 +1,43 @@
+schema_version: 1
+name: simulation-partition-scatter
+
+experiment:
+  # data_only stops after generation, train/test splitting, client partitioning,
+  # CSV export, and visualization. No survival model is trained.
+  stage: data_only
+  seeds: [42]
+  fail_fast: true
+
+data:
+  source: simulation
+  mechanism: weibull
+  n_samples: 300
+  n_features: 5
+  censoring_rate: 0.4
+  test_size: 0.2
+  standardize: false
+  missing_values: error
+
+partition:
+  method: iid
+  n_clients: 3
+  stratify_by: status
+  alpha: 0.5
+
+visualization:
+  enabled: true
+  style: publication
+  formats: [png, pdf]
+  client_partition:
+    type: scatter
+    x: feature_1
+    y: time
+    show_sample_size: true
+    show_censoring_rate: true
+  composite:
+    enabled: false
+
+output:
+  directory: results/simulation_partition_scatter
+  # This is an interactive preview, so repeated PyCharm runs replace it.
+  overwrite: true

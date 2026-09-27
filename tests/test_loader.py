@@ -162,5 +162,50 @@ def test_missing_columns():
         if test_file.exists():
             test_file.unlink()
 
+def test_feature_columns_without_x_prefix():
+    """特征列名不以 x 开头时必须保留（回归：曾因 startswith('x') 被静默丢弃）"""
+    data = pd.DataFrame({
+        'AGE': [61, 55, 73],
+        'BMI': [22.1, 28.4, 24.9],
+        'nodes': [3, 0, 7],
+        'time': [120, 300, 88],
+        'status': [1, 0, 1]
+    })
+    loader = DataLoader(feature_columns={'AGE': 'age', 'BMI': 'bmi', 'nodes': 'nodes'})
+    loaded = loader._process_data(data.copy())
+
+    assert list(loaded.columns) == ['age', 'bmi', 'nodes', 'time', 'status']
+    assert loaded.shape == (3, 5)
+    assert loaded['bmi'].tolist() == [22.1, 28.4, 24.9]
+
+def test_feature_order_preserved_not_lexicographic():
+    """特征数 >= 10 时列序应保持原始顺序，而非 x1, x10, x11, ..., x2"""
+    columns = {f'raw{i}': [float(i)] * 3 for i in range(12)}
+    columns.update({'time': [1.0, 2.0, 3.0], 'status': [1, 0, 1]})
+    data = pd.DataFrame(columns)
+
+    loaded = DataLoader()._process_data(data.copy())
+
+    assert list(loaded.columns) == [f'x{i + 1}' for i in range(12)] + ['time', 'status']
+
+def test_non_numeric_feature_column_raises():
+    """混入字符串型 ID 列时应给出指名列名的报错，而非裸 pandas 异常"""
+    data = pd.DataFrame({
+        'age': [30, 40, 50],
+        'pid': ['a', 'b', 'c'],
+        'time': [100, 200, 300],
+        'status': [1, 0, 1]
+    })
+    loader = DataLoader()
+    # 自动重命名下应同时报出原始列名 pid，而不是只说 x2
+    with pytest.raises(ValueError, match="from original column 'pid'"):
+        loader._process_data(data.copy())
+
+def test_no_feature_columns_raises():
+    """数据只剩标签列时应报错，不能静默返回 0 特征"""
+    data = pd.DataFrame({'time': [1.0, 2.0], 'status': [1, 0]})
+    with pytest.raises(ValueError, match="No feature columns"):
+        DataLoader()._process_data(data.copy())
+
 if __name__ == '__main__':
     pytest.main([__file__]) 

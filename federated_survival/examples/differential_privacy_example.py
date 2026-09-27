@@ -1,7 +1,8 @@
 """
-差分隐私联邦学习生存分析示例
+历史客户端更新扰动示例（不提供端到端差分隐私保证）
 
-本示例展示如何使用三种差分隐私机制进行联邦学习生存分析：
+本示例仅展示三类遗留噪声/选择工具的调用方式。当前训练路径没有逐样本裁剪、
+隐私放大或跨轮 accountant，不能把 epsilon/delta 参数报告为 record-level DP 保证：
 1. Gaussian Mechanism (高斯机制) - 适用于深度学习梯度保护
 2. Laplace Mechanism (拉普拉斯机制) - 适用于计数查询
 3. Exponential Mechanism (指数机制) - 适用于模型选择
@@ -46,7 +47,7 @@ def generate_data(n_samples=1000, n_features=20, num_clients=5):
 def demonstrate_gaussian_mechanism():
     """演示高斯机制（Gaussian Mechanism）
     
-    高斯机制是最常用的差分隐私机制，提供 (ε, δ)-DP 保证。
+    演示高斯噪声工具；当前联邦训练路径不据此提供 (ε, δ)-DP 保证。
     适用于深度学习梯度保护，通过添加高斯噪声保护模型参数。
     """
     print("\n" + "="*60)
@@ -101,7 +102,7 @@ def demonstrate_gaussian_mechanism():
 def demonstrate_laplace_mechanism():
     """演示拉普拉斯机制（Laplace Mechanism）
     
-    拉普拉斯机制提供纯 ε-DP 保证，不需要 delta 参数。
+    演示拉普拉斯噪声工具；当前联邦训练路径不据此提供纯 ε-DP 保证。
     适用于计数查询和求和查询，噪声服从拉普拉斯分布。
     """
     print("\n" + "="*60)
@@ -154,7 +155,7 @@ def demonstrate_laplace_mechanism():
 def demonstrate_exponential_mechanism():
     """演示指数机制（Exponential Mechanism）
     
-    指数机制适用于从候选集中选择最优元素，提供纯 ε-DP 保证。
+    演示离散候选选择；只有另行证明质量函数敏感度时才可讨论其 DP 保证。
     常用于模型选择、超参数选择等离散优化问题。
     """
     print("\n" + "="*60)
@@ -210,7 +211,7 @@ def demonstrate_exponential_mechanism():
     print("  指数机制选择概率与质量得分成指数关系")
     print(f"  最高得分模型 (Model_E: {quality_scores[4]:.4f}) 被选中概率最高")
     print(f"  实际选中次数: {selection_counts['Model_E']} 次")
-    print("  隐私保证: ε-差分隐私 (纯隐私保护)")
+    print("  说明: 当前示例未建立端到端隐私保证")
     
     return selection_counts
 
@@ -224,7 +225,7 @@ def main():
     print("  1. Gaussian Mechanism (高斯机制)")
     print("  2. Laplace Mechanism (拉普拉斯机制)")
     print("  3. Exponential Mechanism (指数机制)")
-    print("\n每种机制都有其特定的应用场景和隐私保证。")
+    print("\n这些工具有不同实验用途，但当前训练流程没有端到端隐私会计。")
     
     # 演示三种机制
     results_gaussian = demonstrate_gaussian_mechanism()
@@ -237,7 +238,7 @@ def main():
     print("="*60)
     print("\n机制特性对比:")
     print("+" + "-"*18 + "+" + "-"*18 + "+" + "-"*20 + "+")
-    print("| {:^16} | {:^16} | {:^18} |".format("机制", "隐私保证", "最佳应用场景"))
+    print("| {:^16} | {:^16} | {:^18} |".format("工具", "当前软件保证", "实验用途"))
     print("+" + "-"*18 + "+" + "-"*18 + "+" + "-"*20 + "+")
     print("| {:^16} | {:^16} | {:^18} |".format("Gaussian", "(ε, δ)-DP", "深度学习梯度"))
     print("| {:^16} | {:^16} | {:^18} |".format("Laplace", "ε-DP", "计数/求和查询"))

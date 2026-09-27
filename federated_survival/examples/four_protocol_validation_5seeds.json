@@ -1,0 +1,46 @@
+{
+  "name": "four-protocol-validation-5seeds",
+  "output": "results/software_validation/four_protocol_validation_5seeds",
+  "data": {
+    "mechanism": "weibull",
+    "n_samples": 180,
+    "n_features": 4,
+    "c_mean": 0.4
+  },
+  "models": [
+    "CoxPH",
+    "DeepSurv",
+    "CoxCC",
+    "CoxTime",
+    "LogisticHazard",
+    "PC-Hazard",
+    "DeepHit"
+  ],
+  "protocols": [
+    {"name": "FedAvg"},
+    {"name": "FedProx", "params": {"mu": 0.01}},
+    {
+      "name": "FedOpt",
+      "params": {"optimizer": "adam", "server_lr": 0.01}
+    },
+    {
+      "name": "WebDISCO-style",
+      "models": ["CoxPH"],
+      "params": {"max_iter": 50, "tolerance": 1e-7}
+    }
+  ],
+  "federated": {
+    "n_clients": 3,
+    "global_rounds": 1,
+    "local_steps": 2,
+    "batch_size": 24,
+    "learning_rate": 0.001,
+    "client_fraction": 1.0,
+    "split_type": "iid",
+    "num_nodes": [32, 32],
+    "num_durations": 12,
+    "optimizer": "adam",
+    "weight_decay": 0.0
+  },
+  "seeds": [101, 202, 303, 404, 505]
+}

@@ -38,9 +38,22 @@ class DataSplitter:
         self.alpha = alpha
         self.test_size = test_size
         self.random_state = random_state
+
+        if self.n_clients <= 0:
+            raise ValueError("n_clients must be positive")
+        if self.alpha <= 0:
+            raise ValueError("alpha must be positive")
+        if not 0 < self.test_size < 1:
+            raise ValueError("test_size must be between 0 and 1")
         
-        if self.split_type not in ['iid', 'non-iid', 'time-non-iid', 'dirichlet']:
-            raise ValueError("split_type must be one of 'iid', 'non-iid', 'time-non-iid', 'Dirichlet'")
+        if self.split_type not in [
+            'iid', 'random', 'non-iid', 'censoring-non-iid',
+            'time-non-iid', 'dirichlet'
+        ]:
+            raise ValueError(
+                "split_type must be one of 'iid', 'random', 'non-iid', "
+                "'censoring-non-iid', 'time-non-iid', 'dirichlet'"
+            )
         
         if self.random_state is not None:
             np.random.seed(self.random_state)
@@ -70,9 +83,11 @@ class DataSplitter:
         # 根据不同的划分方式分配数据
         if self.split_type == 'iid':
             client_data = self._split_iid(train_data)
-        elif self.split_type == 'non-iid':
-            client_data = self._split_non_iid(train_data)
-        elif self.split_type == 'Dirichlet':
+        elif self.split_type == 'random':
+            client_data = self._split_random(train_data)
+        elif self.split_type in ['non-iid', 'censoring-non-iid']:
+            client_data = self._split_censoring_non_iid(train_data)
+        elif self.split_type == 'dirichlet':
             # 使用类属性作为默认参数值
             client_data = self._split_Dirichlet(
                 train_data, 
@@ -82,6 +97,12 @@ class DataSplitter:
             )
         else:  # time-non-iid
             client_data = self._split_time_non_iid(train_data)
+
+        # The unified seven-model workflow contains Cox-type objectives whose
+        # event sampler is undefined on a client with no observed event.  Keep
+        # the requested split as intact as possible by moving one event from a
+        # donor only when a generated partition is degenerate.
+        client_data = self._ensure_minimum_one_event(client_data)
         
         # 为每个客户端分配数据
         clients_set = {}
@@ -111,6 +132,40 @@ class DataSplitter:
             test_label=test_y,
             raw_aug_clients_set=raw_aug_clients_set
         )
+
+    def _ensure_minimum_one_event(
+        self, client_data: Dict[int, pd.DataFrame]
+    ) -> Dict[int, pd.DataFrame]:
+        """Repair a generated partition so every client has one event.
+
+        This is a conditioning constraint for a benchmark that must run Cox
+        objectives on every client.  It is not an IID-preserving operation and
+        should be reported as such for Dirichlet experiments.
+        """
+        total_events = int(sum(frame['status'].sum() for frame in client_data.values()))
+        if total_events < self.n_clients:
+            raise ValueError(
+                "Cannot create non-degenerate client partitions: observed "
+                f"events ({total_events}) are fewer than clients ({self.n_clients})"
+            )
+
+        repaired = {key: value.copy() for key, value in client_data.items()}
+        missing = [key for key, frame in repaired.items() if int(frame['status'].sum()) == 0]
+        for recipient in missing:
+            event_counts = {
+                key: int(frame['status'].sum()) for key, frame in repaired.items()
+            }
+            donor = max(event_counts, key=event_counts.get)
+            if event_counts[donor] <= 1:
+                raise ValueError("Unable to repair a zero-event client without creating another")
+            donor_events = repaired[donor][repaired[donor]['status'] == 1]
+            moved = donor_events.iloc[[0]].copy()
+            repaired[donor] = repaired[donor].drop(index=moved.index).reset_index(drop=True)
+            repaired[recipient] = pd.concat(
+                [repaired[recipient], moved], ignore_index=True
+            )
+
+        return {key: frame.reset_index(drop=True) for key, frame in repaired.items()}
     
     def _split_iid(self, data: pd.DataFrame) -> Dict[int, pd.DataFrame]:
         """IID划分方式, 保证每个客户端删失率相同"""
@@ -136,8 +191,8 @@ class DataSplitter:
         
         return client_data
     
-    def _split_non_iid(self, data: pd.DataFrame) -> Dict[int, pd.DataFrame]:
-        """Non-IID划分方式，不保证每个客户端删失率相同"""
+    def _split_random(self, data: pd.DataFrame) -> Dict[int, pd.DataFrame]:
+        """Unstratified random split (still IID in expectation)."""
         # 打乱data
         data = data.sample(frac=1).reset_index(drop=True)
         
@@ -149,6 +204,42 @@ class DataSplitter:
             end_idx = (i + 1) * samples_per_client if i < self.n_clients - 1 else n_samples
             client_data[i] = data.iloc[start_idx:end_idx].copy()
         return client_data
+
+    def _split_censoring_non_iid(self, data: pd.DataFrame) -> Dict[int, pd.DataFrame]:
+        """Create a reproducible censoring-rate shift across clients."""
+        rng = np.random.RandomState(self.random_state)
+        event = data[data['status'] == 1].sample(
+            frac=1, random_state=self.random_state
+        )
+        censored = data[data['status'] == 0].sample(
+            frac=1,
+            random_state=None if self.random_state is None else self.random_state + 1,
+        )
+        increasing = np.linspace(1.0, 3.0, self.n_clients)
+        event_counts = rng.multinomial(len(event), increasing / increasing.sum())
+        censor_counts = rng.multinomial(
+            len(censored), increasing[::-1] / increasing.sum()
+        )
+
+        def partition(frame, counts):
+            pieces, start = [], 0
+            for count in counts:
+                pieces.append(frame.iloc[start:start + count])
+                start += count
+            return pieces
+
+        event_parts = partition(event, event_counts)
+        censor_parts = partition(censored, censor_counts)
+        result = {}
+        for client_id in range(self.n_clients):
+            client = pd.concat(
+                [event_parts[client_id], censor_parts[client_id]], ignore_index=True
+            )
+            result[client_id] = client.sample(
+                frac=1,
+                random_state=None if self.random_state is None else self.random_state + client_id,
+            )
+        return result
 
 
     def _split_Dirichlet(self, data: pd.DataFrame, num_of_clients: int, beta: float, n_time_bins: int) -> Dict[int, pd.DataFrame]:

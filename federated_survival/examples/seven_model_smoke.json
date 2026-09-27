@@ -1,0 +1,33 @@
+{
+  "name": "seven-model-smoke",
+  "output": "results/seven_model_smoke",
+  "models": [
+    "CoxPH",
+    "DeepSurv",
+    "CoxCC",
+    "CoxTime",
+    "LogisticHazard",
+    "PC-Hazard",
+    "DeepHit"
+  ],
+  "seeds": [42],
+  "data": {
+    "mechanism": "weibull",
+    "n_samples": 300,
+    "n_features": 10,
+    "c_mean": 0.4
+  },
+  "federated": {
+    "n_clients": 5,
+    "global_rounds": 2,
+    "local_steps": 1,
+    "batch_size": 32,
+    "learning_rate": 0.001,
+    "client_fraction": 1.0,
+    "split_type": "iid",
+    "split_alpha": 0.5,
+    "num_durations": 25,
+    "optimizer": "adam",
+    "weight_decay": 0.0
+  }
+}

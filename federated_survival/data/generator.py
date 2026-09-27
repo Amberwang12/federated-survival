@@ -32,7 +32,9 @@ class DataGenerator:
         
         Args:
             sim_type: The type of AFT model to generate.
-            c_mean: The mean of the censoring time.
+            c_mean: Exponential censoring-time rate control. NumPy uses the
+                corresponding scale ``1 / c_mean``; this does not force an
+                exact censoring fraction.
         """
         n = self.config.n_samples
         p = self.config.n_features
@@ -74,7 +76,9 @@ class DataGenerator:
         """Generate SDGM1 data (proportional hazards model).
         
         Args:
-            c_mean: The mean of the censoring time.
+            c_mean: Exponential censoring-time rate control. NumPy uses the
+                corresponding scale ``1 / c_mean``; this does not force an
+                exact censoring fraction.
         """
         n = self.config.n_samples
         p = self.config.n_features
@@ -212,9 +216,9 @@ class DataGenerator:
         
         Args:
             sim_type: Type of simulation to generate. One of:
-                - 'weibull': Weibull AFT model, c_mean is the mean of the censoring time, control the censoring rate
-                - 'lognormal': Lognormal AFT model, c_mean is the mean of the censoring time, control the censoring rate
-                - 'SDGM1': SDGM1 (proportional hazards), c_mean is the mean of the censoring time, control the censoring rate
+                - 'weibull': Weibull AFT model; c_mean controls the exponential censoring-time rate
+                - 'lognormal': Lognormal AFT model; c_mean controls the exponential censoring-time rate
+                - 'SDGM1': proportional-hazards model; c_mean controls the exponential censoring-time rate
                 - 'SDGM2': SDGM2 (mild violations of PH), u_max is the maximum value of the censoring time, control the censoring rate
                 - 'SDGM3': SDGM3 (strong violations of PH), u_max is the maximum value of the censoring time, control the censoring rate
                 - 'SDGM4': SDGM4 (proportional hazards with log-normal errors), c_step is the step size of the censoring time, control the censoring rate

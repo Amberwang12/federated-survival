@@ -107,6 +107,8 @@ def test_run_raw_data(config, test_data):
     assert 'train_IBS' in history
     assert 'test_Cindex' in history
     assert 'test_IBS' in history
+    assert 'update_direction_dispersion' in history
+    assert history['telemetry_is_common_point_gradient'] is False
     assert len(history['train_Cindex']) == config.global_epochs
     assert len(history['train_IBS']) == config.global_epochs
     assert len(history['test_Cindex']) == config.global_epochs

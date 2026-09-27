@@ -52,7 +52,7 @@ def main():
         n_samples=1000,          # Number of samples
         censor_rate=0.2,         # Censoring rate
         model_type='PC-Hazard',  # Survival model type
-        local_epochs=2,          # Number of local training epochs
+        local_epochs=2,          # Exact local optimizer steps E (historical field name)
         global_epochs=10,        # Number of global communication rounds
         learning_rate=0.01,      # Learning rate
         batch_size=32,           # Batch size

@@ -39,8 +39,9 @@ def test_initialization(dp_tool):
 
 def test_add_gaussian_noise(dp_tool):
     """测试高斯噪声添加"""
+    torch.manual_seed(1234)
     # 创建测试张量
-    tensor = torch.ones(10, 5)
+    tensor = torch.ones(10000)
     original_tensor = tensor.clone()
     
     # 添加噪声
@@ -57,13 +58,14 @@ def test_add_gaussian_noise(dp_tool):
     noise_std = torch.std(noise)
     expected_std = dp_tool.sensitivity * dp_tool.noise_multiplier
     
-    # 噪声标准差应该在期望值附近（允许一定误差）
-    assert abs(noise_std.item() - expected_std) <= 0.5
+    # 用足够大的样本和固定种子检查尺度，避免小样本随机失败。
+    assert np.isclose(noise_std.item(), expected_std, rtol=0.05, atol=0.05)
 
 
 def test_add_gaussian_noise_with_custom_sensitivity(dp_tool):
     """测试使用自定义敏感度的高斯噪声添加"""
-    tensor = torch.ones(5, 3)
+    torch.manual_seed(5678)
+    tensor = torch.ones(10000)
     custom_sensitivity = 2.0
     
     noisy_tensor = dp_tool.add_gaussian_noise(tensor, sensitivity=custom_sensitivity)
@@ -76,7 +78,7 @@ def test_add_gaussian_noise_with_custom_sensitivity(dp_tool):
     noise_std = torch.std(noise)
     expected_std = custom_sensitivity * dp_tool.noise_multiplier
     
-    assert abs(noise_std.item() - expected_std) <= 0.5
+    assert np.isclose(noise_std.item(), expected_std, rtol=0.05, atol=0.05)
 
 
 def test_clip_gradients(dp_tool):
@@ -137,8 +139,11 @@ def test_get_noise_scale(dp_tool):
     noise_scale = dp_tool.get_noise_scale(num_clients)
     
     # 验证噪声规模计算
-    expected_scale = math.sqrt(2 * math.log(1.25 / dp_tool.delta)) * dp_tool.sensitivity / dp_tool.epsilon
-    expected_scale = expected_scale / math.sqrt(num_clients)
+    # Independent client noise averages down by sqrt(K).  The Gaussian helper
+    # is parameterized by the configured noise multiplier.
+    expected_scale = (
+        dp_tool.noise_multiplier * dp_tool.sensitivity / math.sqrt(num_clients)
+    )
     
     assert abs(noise_scale - expected_scale) < 1e-6
 
