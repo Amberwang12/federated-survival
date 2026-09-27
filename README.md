@@ -16,18 +16,19 @@ or production-deployment guarantee. See [Privacy scope](docs/privacy.md).
 
 ## What the package can do
 
-| Stage | Public call | Main choices | Returned result |
+| Capability | Public call | Main choices | Returned result |
 | --- | --- | --- | --- |
-| Simulate data | `fs.simulate_data(...)` | Weibull, log-normal, SDGM1–4 | pandas survival table |
-| Load real data | `fs.load_data(...)` | CSV or Excel | canonical feature/time/status table |
-| Partition data | `fs.partition_data(...)` | IID, random, censoring-non-IID, time-non-IID, Dirichlet | train/test data and client arrays |
-| Repeat partitions | `fs.partition_data_many(...)` | one partition per seed | seed-to-partition mapping |
-| Run one comparison | `fs.compare_methods(...)` | one model and one protocol | Center, Federated, Local-client, and Weighted Local results |
-| Run a matrix | `fs.compare_experiments(...)` | multiple models and protocols | compatible model-protocol cells |
-| Augment clients | `fs.augment_clients(...)` | MVAEC or MVAES; sparse-targeted or unconditional sampling | original-plus-synthetic client arrays |
-| Inspect augmentation | `fs.summarize_augmentation(...)` | per-client sparse target and landing fraction | pandas summary table |
-| Visualize | `fs.plot_partition(...)`, `result.plot(...)`, `result.save_figures(...)` | strip, scatter, line, dot, bar, table, box, violin; separate or combined | Matplotlib figures and image files |
-| Run recorded experiments | `federated-survival run --config ...` | JSON/YAML schema-v1 configuration | metrics, predictions, figures, environment record, manifest |
+| Simulate a survival table | `fs.simulate_data(...)` | Weibull, log-normal, SDGM1–4 | pandas survival table |
+| Load and normalize a survival table | `fs.load_data(...)` | CSV or Excel | canonical feature/time/status table |
+| Partition into train/test and clients | `fs.partition_data(...)` | IID, random, censoring-non-IID, time-non-IID, Dirichlet | train/test data and client arrays |
+| Build paired partitions per seed | `fs.partition_data_many(...)` | one partition per seed | seed-to-partition mapping |
+| Compare Center/Federated/Local for one model–protocol pair | `fs.compare_methods(...)` | one model and one protocol | Center, Federated, Local-client, and Weighted Local results |
+| Compare a model × protocol grid | `fs.compare_experiments(...)` | multiple models and protocols | compatible model-protocol cells |
+| Generate synthetic client rows | `fs.augment_clients(...)` | MVAEC or MVAES; sparse-targeted or unconditional sampling | original-plus-synthetic client arrays |
+| Audit synthetic-target hit rate | `fs.summarize_augmentation(...)` | per-client sparse target and landing fraction | pandas summary table |
+| Visualize the client partition | `fs.plot_partition(...)` | strip, scatter; separate or combined | Matplotlib figures and image files |
+| Visualize final metrics and round history | `result.plot(...)`, `result.save_figures(...)` | line, dot, bar, table, box, violin; separate or combined | Matplotlib figures and image files |
+| Run an audited end-to-end experiment from a config | `federated-survival run --config ...` | JSON/YAML schema-v1 configuration | metrics, predictions, figures, environment record, manifest |
 
 The public registries can be inspected at runtime:
 
