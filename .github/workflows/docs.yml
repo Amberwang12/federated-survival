@@ -28,8 +28,20 @@ jobs:
           cache: pip
       - run: python -m pip install ".[docs]"
       - run: mkdocs build --strict
+      # Artifacts are scoped to a workflow *run*, not to a single attempt, so a
+      # fixed "github-pages" name leaves the previous attempt's artifact behind
+      # when the run is retried ("Re-run failed jobs"), and deploy-pages then
+      # aborts with "Multiple artifacts named github-pages were unexpectedly
+      # found for this workflow run. Artifact count is 2."
+      # Suffixing the name with the attempt number keeps it unique per attempt,
+      # which makes retries work. Both inputs below are documented by the
+      # actions; the fixed "github-pages" name is only mandatory when the
+      # artifact is uploaded by hand instead of via upload-pages-artifact.
       - uses: actions/upload-pages-artifact@v5
         with:
+          name: github-pages-${{ github.run_attempt }}
           path: site
       - id: deployment
         uses: actions/deploy-pages@v5
+        with:
+          artifact_name: github-pages-${{ github.run_attempt }}
