@@ -14,6 +14,8 @@ Raw records remain local during the simulated federated workflow. This alone
 is not a formal differential-privacy, secure-aggregation, transport-security,
 or production-deployment guarantee. See [Privacy scope](docs/privacy.md).
 
+**Documentation:** <https://amberwang12.github.io/federated-survival/>
+
 ## What the package can do
 
 | Capability | Public call | Main choices | Returned result |
@@ -333,6 +335,10 @@ See [Configuration-driven experiments](docs/configuration.md) for every
 schema-v1 field. Paths inside YAML are resolved relative to the YAML file.
 
 ## Documentation
+
+The documentation is published at
+<https://amberwang12.github.io/federated-survival/>. The same pages ship with
+the source tree, where they can be read without a network connection:
 
 - [Composable Python experiments](docs/interactive-experiments.md)
 - [Augmentation and privacy calls](docs/augmentation-privacy.md)
