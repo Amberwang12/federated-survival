@@ -167,5 +167,82 @@ def test_invalid_split_type():
         splitter = DataSplitter(n_clients=5, split_type='invalid')
         splitter.split(data)
 
+
+def _survival_frame(n_samples, seed=0):
+    rng = np.random.RandomState(seed)
+    return pd.DataFrame({
+        'x1': rng.randn(n_samples),
+        'x2': rng.randn(n_samples),
+        'time': rng.exponential(size=n_samples),
+        'status': rng.choice([0, 1], size=n_samples, p=[0.6, 0.4]),
+    })
+
+
+def test_random_split_is_a_disjoint_partition():
+    """split_type='random' must partition the training set, never drop rows."""
+    data = _survival_frame(1000, seed=11)
+    splitter = DataSplitter(n_clients=4, split_type='random', random_state=0)
+    train = data.iloc[:800]
+
+    parts = splitter._split_random(train)
+    collected = np.concatenate([part.index.to_numpy() for part in parts.values()])
+
+    assert set(parts) == {0, 1, 2, 3}
+    assert len(collected) == len(train)          # 无丢失
+    assert len(set(collected)) == len(train)     # 无重复（各客户端互不重叠）
+    assert set(collected) == set(train.index)    # 全覆盖
+
+
+def test_random_split_reaches_the_public_split_api():
+    """The 'random' branch must be wired into ``split``, not just defined."""
+    data = _survival_frame(1000, seed=12)
+    result = DataSplitter(
+        n_clients=4, split_type='random', random_state=42
+    ).split(data)
+
+    assert len(result.clients_set) == 4
+    total_samples = sum(X.shape[0] for X, _ in result.clients_set.values())
+    assert total_samples == int(1000 * 0.8)
+
+
+def test_random_split_differs_from_stratified_iid():
+    """Guards against the 'random' branch silently falling through to 'iid'."""
+    data = _survival_frame(900, seed=13)
+    random_parts = DataSplitter(
+        n_clients=3, split_type='random', random_state=7
+    )._split_random(data)
+    iid_parts = DataSplitter(
+        n_clients=3, split_type='iid', random_state=7
+    )._split_iid(data)
+
+    random_first = set(random_parts[0].index)
+    iid_first = set(iid_parts[0].index)
+    assert random_first != iid_first
+
+
+def test_random_split_last_client_absorbs_remainder():
+    """Indivisible sample counts must not lose the remainder."""
+    data = _survival_frame(101, seed=14)
+    splitter = DataSplitter(n_clients=3, split_type='random', random_state=0)
+
+    parts = splitter._split_random(data)
+    sizes = [len(part) for part in parts.values()]
+
+    assert sum(sizes) == 101
+    assert sizes[0] == sizes[1] == 33
+    assert sizes[2] == 35  # 33 * 3 = 99，余下 2 条归最后一个客户端
+
+
+def test_censoring_non_iid_alias_is_supported():
+    """The documented alias must build a partition with a censoring shift."""
+    data = _survival_frame(600, seed=15)
+    result = DataSplitter(
+        n_clients=3, split_type='censoring-non-iid', random_state=1
+    ).split(data)
+
+    assert len(result.clients_set) == 3
+    rates = [1 - y[:, 1].mean() for _, y in result.clients_set.values()]
+    assert max(rates) - min(rates) > 0.01  # 客户端之间确实存在删失率差异
+
 if __name__ == '__main__':
     pytest.main([__file__]) 

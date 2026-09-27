@@ -8,6 +8,7 @@ from lifelines import CoxPHFitter
 
 from federated_survival import (
     DataGenerator,
+    FederatedProtocol,
     FederatedSurvival,
     SimulationConfig,
     available_federated_protocols,
@@ -195,3 +196,20 @@ def test_webdisco_coefficients_match_pooled_cox_on_continuous_times():
         atol=1e-6,
         rtol=1e-6,
     )
+
+
+def test_base_protocol_aggregate_is_not_implemented():
+    """Parameter aggregation is a contract every concrete protocol must fill."""
+    protocol = FederatedProtocol()
+
+    with pytest.raises(NotImplementedError):
+        protocol.aggregate({}, [], [], round_index=0)
+
+
+def test_webdisco_refuses_parameter_aggregation():
+    """WebDISCO-style owns its risk-set training loop and must say so loudly."""
+    protocol = get_federated_protocol("WebDISCO-style")
+
+    assert protocol.owns_training_loop is True
+    with pytest.raises(RuntimeError, match="risk-set-statistics"):
+        protocol.aggregate({}, [], [], round_index=0)
