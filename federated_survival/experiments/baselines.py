@@ -16,20 +16,13 @@ import numpy as np
 import pandas as pd
 import torch
 from pycox.evaluation import EvalSurv
-from pycox.models import (
-    CoxCC,
-    CoxPH,
-    CoxTime,
-    DeepHitSingle,
-    LogisticHazard,
-    PCHazard,
-)
 
 from federated_survival.core.config import FSAConfig
 from federated_survival.core._losses import apply_cox_patient_normalization
 from federated_survival.core._minibatch import deterministic_stream_seed, fit_in_local_steps
 from federated_survival.core.runner import FSARunner
 from federated_survival.core.server import Server
+from federated_survival.models import get_model_adapter
 from federated_survival.utils.metrics import evaluation_time_grid
 
 MODEL_NAMES = (
@@ -54,42 +47,25 @@ def _targets(y: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
 
 
 def _prepare(config: FSAConfig, y: np.ndarray):
-    if config.model_type == "PC-Hazard":
-        labtrans = PCHazard.label_transform(config.num_durations, scheme="quantiles")
-    elif config.model_type == "LogisticHazard":
-        labtrans = LogisticHazard.label_transform(config.num_durations, scheme="quantiles")
-    elif config.model_type == "DeepHit":
-        labtrans = DeepHitSingle.label_transform(config.num_durations, scheme="quantiles")
-    elif config.model_type == "CoxTime":
-        labtrans = CoxTime.label_transform()
-    else:
-        labtrans = None
+    """Fit the adapter-owned label transform and report the output width.
 
-    target = _targets(y)
-    if labtrans is None:
-        transformed = target
-        config.out_features = 1
-    else:
-        transformed = labtrans.fit_transform(*target)
-        config.labtrans = labtrans
-        config.out_features = labtrans.out_features
+    Delegating to :meth:`ModelAdapter.configure_targets` keeps the centralized
+    baselines and the federated runner on a single implementation, so an
+    adapter registered through the public ``register_model_adapter`` registry
+    behaves identically on both paths.
+    """
+    adapter = get_model_adapter(config.model_type)
+    durations, events = _targets(y)
+    labtrans = adapter.configure_targets(config, durations, events)
+    transformed = adapter.transform_target(y, labtrans)
     return labtrans, transformed
 
 
 def _wrap_model(config: FSAConfig, net, optimizer, labtrans):
-    if config.model_type == "PC-Hazard":
-        return PCHazard(net, optimizer, duration_index=labtrans.cuts)
-    if config.model_type == "LogisticHazard":
-        return LogisticHazard(net, optimizer, duration_index=labtrans.cuts)
-    if config.model_type == "DeepHit":
-        return DeepHitSingle(net, optimizer, duration_index=labtrans.cuts)
-    if config.model_type in ("DeepSurv", "CoxPH"):
-        return CoxPH(net, optimizer)
-    if config.model_type == "CoxTime":
-        return CoxTime(net, optimizer, labtrans=labtrans)
-    if config.model_type == "CoxCC":
-        return CoxCC(net, optimizer)
-    raise ValueError(f"Unsupported model: {config.model_type}")
+    """Wrap ``net`` with the pycox model owned by the registered adapter."""
+    return get_model_adapter(config.model_type).build_model(
+        net, config, label_transform=labtrans, optimizer=optimizer
+    )
 
 
 def _evaluate(model, x_test: np.ndarray, y_test: np.ndarray, quantiles) -> Tuple[float, float]:
@@ -139,7 +115,7 @@ def _fit_one(
         full_batch=conf.full_batch,
         seed=deterministic_stream_seed(seed, f"baseline:{conf.model_type}:{len(x_train)}"),
     )
-    if conf.model_type in ("DeepSurv", "CoxPH", "CoxTime", "CoxCC"):
+    if get_model_adapter(conf.model_type).requires_baseline_hazards:
         model.compute_baseline_hazards()
     return _evaluate(model, x_test, y_test, conf.evaluation_quantiles)
 
@@ -286,7 +262,16 @@ def run_paired_baselines(
 
 
 def summarize_results(raw: pd.DataFrame) -> pd.DataFrame:
-    """Return descriptive paired summaries; no inference is claimed for smoke runs."""
+    """Return descriptive paired summaries; no inference is claimed for smoke runs.
+
+    Expects the ``raw_results.csv`` layout produced by
+    :mod:`federated_survival.experiments.workflow_runner`: one row per
+    ``(split, model, method, seed)``, where ``split`` and ``model`` identify the
+    comparison cell and ``method`` is one of ``Center``, ``FSA`` or ``Local``.
+    Per-client ``Local-client`` rows are ignored.  Note that
+    :func:`run_paired_baselines` omits the ``split`` column -- it is added by
+    the workflow runner when the results are persisted.
+    """
     aggregate = raw[raw["method"].isin(["Center", "FSA", "Local"])]
     summary = aggregate.groupby(["split", "model", "method"], as_index=False).agg(
         n=("seed", "size"),
