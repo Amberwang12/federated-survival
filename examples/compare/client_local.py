@@ -14,7 +14,7 @@ def clients_local(conf, datasets, type='raw'):
     :param type:
     :param conf:
     :param datasets:
-    :return: 返回每个客户端本地训练的Cindex和IBS，以及所有客户端平均的Cindex和IBS
+    :return: Cindex and IBS for each locally trained client, plus the Cindex and IBS averaged over all clients
     """
     conf = deepcopy(conf)
     if type == 'raw':
@@ -36,7 +36,7 @@ def clients_local(conf, datasets, type='raw'):
                                  raw_aug_clients_set={})
         client_metrics = center(conf, local_datasets)
         metrics.append(client_metrics)
-    metrics.append(list(np.mean(metrics, axis=0)))  # 添加均值
+    metrics.append(list(np.mean(metrics, axis=0)))  # Append the mean
     ret = []
     for j in metrics:
         ret = ret + j
@@ -69,7 +69,7 @@ if __name__ == '__main__':
     # Split and distribute data to clients
     dataSet = splitter.split(data_sdgm1)
 
-    # 查看每个客户端的时间范围
+    # Show the time range of each client
     for client_id, client_data in dataSet.clients_set.items():
         train_x, train_y = client_data
         test_durations = train_y[:, 0]
@@ -83,9 +83,9 @@ if __name__ == '__main__':
         n_features=10,  # Number of features
         n_samples=100,  # Number of samples
         model_type='DeepSurv',  # Survival model type
-        local_epochs=2,  # Number of local training epochs
-        global_epochs=10,  # Number of global communication rounds
-        learning_rate=0.01,  # Learning rate
+        local_epochs=1,  # Number of local training steps per round (tuned)
+        global_epochs=30,  # Number of global communication rounds (tuned)
+        learning_rate=0.003,  # Learning rate (tuned)
         batch_size=32,  # Batch size
         random_seed=42,  # Random seed
         client_sample_ratio=0.5,  # Ratio of clients selected in each round

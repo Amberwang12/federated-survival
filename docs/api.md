@@ -18,6 +18,10 @@
 
 ::: federated_survival.data.workflow.load_data
 
+::: federated_survival.data.workflow.load_real_data
+
+::: federated_survival.data.workflow.available_real_datasets
+
 ::: federated_survival.data.workflow.partition_data
 
 ::: federated_survival.data.workflow.partition_data_many

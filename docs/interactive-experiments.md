@@ -60,9 +60,7 @@ For an existing GBSG dataset, the same functions work without a dedicated
 GBSG script or configuration:
 
 ```python
-data = fs.load_data(
-    "data/real/gbsg.csv", duration_column="time", event_column="status"
-)
+data = fs.load_real_data("gbsg")  # bundled GBSG table, ships with the package
 splits = fs.partition_data_many(
     data, seeds=[0, 1, 2, 3, 4], n_clients=3,
     method="iid", test_size=0.2, standardize=True,

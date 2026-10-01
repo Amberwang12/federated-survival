@@ -11,7 +11,7 @@ import json
 
 def center(conf, datasets):
     """
-    集中式的PC-Hazard
+    Centralized PC-Hazard
     :param conf:
     :param datasets:
     :return:
@@ -48,7 +48,7 @@ def center(conf, datasets):
     durations_test, events_test = get_target(datasets.test_label)
     net = model(conf)
     net = net.model_initial()
-    optimizer = optim.Adam(net.parameters(), lr=conf.learning_rate, weight_decay=0.05)
+    optimizer = optim.Adam(net.parameters(), lr=conf.learning_rate, weight_decay=0.0)
     if conf.model_type == 'PC-Hazard':
         center_model = PCHazard(net, optimizer, duration_index=labtrans.cuts)
     elif conf.model_type == 'LogisticHazard':
@@ -73,7 +73,7 @@ def center(conf, datasets):
                          batch_size=datasets.train_data.shape[0])
 
     if conf.model_type in ['DeepSurv', 'CoxPH', 'CoxTime', 'CoxCC']:
-        _ = center_model.compute_baseline_hazards()  # 计算基准风险
+        _ = center_model.compute_baseline_hazards()  # Compute baseline hazards
 
     surv = center_model.predict_surv_df(x_test)
     ev = EvalSurv(surv, durations_test, events_test, censor_surv='km')
@@ -112,7 +112,7 @@ if __name__ == '__main__':
     # Split and distribute data to clients
     DataSet = splitter.split(data_sdgm1)
 
-    # 查看每个客户端的时间范围
+    # Show the time range of each client
     for client_id, client_data in DataSet.clients_set.items():
         train_x, train_y = client_data
         test_durations = train_y[:, 0]
@@ -126,9 +126,9 @@ if __name__ == '__main__':
         n_features=10,  # Number of features
         n_samples=100,  # Number of samples
         model_type='DeepSurv',  # Survival model type
-        local_epochs=2,  # Number of local training epochs
-        global_epochs=10,  # Number of global communication rounds
-        learning_rate=0.01,  # Learning rate
+        local_epochs=1,  # Number of local training steps per round (tuned)
+        global_epochs=30,  # Number of global communication rounds (tuned)
+        learning_rate=0.003,  # Learning rate (tuned)
         batch_size=32,  # Batch size
         random_seed=42,  # Random seed
         client_sample_ratio=0.5,  # Ratio of clients selected in each round

@@ -60,17 +60,24 @@ def compare_fed_center(conf, datasets):
     mvaes_result = [test_cindex, test_ibs]  
 
     # federated learning with differential privacy
-    # Gaussian mechanism parameters
-    conf.use_differential_privacy = True
-    conf.dp_mechanism = 'gaussian'
-    conf.dp_epsilon = 10
-    conf.dp_delta = 1e-4
-    conf.dp_sensitivity = 0.5
-    conf.dp_noise_multiplier = 1.0
-    conf.dp_clip_norm = 2.0
-    conf.verbose = True
+    # Gaussian mechanism parameters. The DP run uses fewer rounds (T=10) so the
+    # number of noisy updates stays low. dp_epsilon is nominal only; noise is
+    # driven by dp_noise_multiplier (true total epsilon measured with
+    # scripts/dp_privacy_audit.py): sigma=10 -> eps=1.33 but utility collapses
+    # (C-index frozen at 0.500); sigma=1.0 -> eps=18.0; sigma=0.1 -> eps=1008.5
+    # (noise barely perturbs training, privacy protection is negligible).
+    dp_conf = deepcopy(conf)
+    dp_conf.use_differential_privacy = True
+    dp_conf.dp_mechanism = 'gaussian'
+    dp_conf.dp_epsilon = 10
+    dp_conf.dp_delta = 1e-4
+    dp_conf.dp_sensitivity = 0.5
+    dp_conf.dp_noise_multiplier = 0.1
+    dp_conf.dp_clip_norm = 2.0
+    dp_conf.global_epochs = 10  # fewer noisy steps: T=10 x E=2 = 20 DP updates
+    dp_conf.verbose = True
 
-    runner = FSARunner(conf)
+    runner = FSARunner(dp_conf)
     results = runner.run(
         datasets,
     )
@@ -97,14 +104,14 @@ def compare_fed_center(conf, datasets):
 
 def simulate_data(conf):
     for _ in range(3):
-        # 重试机制
+        # Retry mechanism
         try:
             result = []
             i = 1
-            for j in range(100):
+            for j in range(5):
                 # Configure data generation
                 sim_config = SimulationConfig(
-                    n_samples=100,  # Number of samples
+                    n_samples=200,  # Number of samples (tuned: enough per-client data for MVAE)
                     n_features=10,  # Number of features
                     random_state=j  # Random seed for reproducibility
                 )
@@ -119,7 +126,7 @@ def simulate_data(conf):
                 splitter = DataSplitter(
                     n_clients=3,  # Number of federated learning clients
                     split_type='Dirichlet',  # Partition type: 'iid', 'non-iid', 'time-non-iid', 'Dirichlet'
-                    alpha=0.8,  # Dirichlet distribution parameter for non-IID splitting
+                    alpha=0.3,  # Dirichlet distribution parameter for non-IID splitting
                     test_size=0.2,  # Proportion of test set
                     random_state=j  # Random seed for reproducibility
                 )
@@ -142,11 +149,12 @@ def simulate_data(conf):
 
 def experiment1(conf):
     """
-    第一个实验：对比四种模拟数据,三个删失率下标准联邦、VAE增强联邦、VAE+BJ增强联邦、集中式、local
+    Experiment 1: compare four simulation setups; standard federated, VAE-augmented federated,
+    VAE+BJ-augmented federated, centralized, and local baselines under three censoring rates.
     :param conf:
     :return:
     """
-    # print(conf)  # 打印配置
+    # print(conf)  # Print configuration
     # print(id(conf))
     conf = deepcopy(conf)
 
@@ -179,7 +187,7 @@ def experiment1(conf):
     print(conf)
     print(cur_time)
     with open('result/' + conf.model_type + '_' + conf.dataset_name + '_' + conf.split_methods + '_' +
-              cur_time + '_federal_and_central-result.txt', 'w') as f:  # 设置文件对象
+              cur_time + '_federal_and_central-result.txt', 'w') as f:  # Open output file object
         print(conf, file=f)
     result_df.to_csv('result/' + conf.model_type + '_' + conf.dataset_name + '_' + conf.split_methods + '_' +
                      cur_time + '_federal_and_central-result.csv',
@@ -191,24 +199,25 @@ if __name__ == '__main__':
     config = FSAConfig(
         num_clients=3,  # Number of federated learning clients
         n_features=10,  # Number of features
-        n_samples=100,  # Number of samples
+        n_samples=200,  # Number of samples (tuned: enough per-client data for MVAE)
         model_type='DeepSurv',  # Survival model type
         num_nodes=(32, 32),
-        dropout=True,
-        local_epochs=2,  # Number of local training epochs
-        global_epochs=10,  # Number of global communication rounds
-        learning_rate=0.01,  # Learning rate
+        dropout=0.1,  # Fix: True was interpreted as p=1.0 and froze all training
+        local_epochs=2,  # Number of local training steps per round (tuned)
+        global_epochs=30,  # Number of global communication rounds (tuned)
+        learning_rate=0.003,  # Learning rate (tuned)
         batch_size=16,  # Batch size
+        weight_decay=0.0,  # Fix: default 0.05 over-regularized the federated model
         random_seed=42,  # Random seed
         client_sample_ratio=1,  # Ratio of clients selected in each round
-        early_stopping=True,  # Enable early stopping
+        early_stopping=False,  # Disable early stopping (tuned: noisy on small test sets)
         early_stopping_patience=5,  # Number of epochs to wait before early stopping
         # Augmentation parameters
-        latent_num=5,  # Dimension of latent space
+        latent_num=10,  # Dimension of latent space (tuned: matches GBSG-Dirichlet winner)
         hidden_num=32,  # Dimension of hidden layer
         alpha=1.0,  # Weight for KL divergence
-        beta=1.0,  # Weight for conditional loss
-        k=0.5  # Augmentation ratio (0 < k <= 1)
+        beta=5.0,  # Weight for conditional loss (tuned: better synthetic event times)
+        k=0.7  # Augmentation ratio (0 < k <= 1)
     )
 
     experiment1(config)

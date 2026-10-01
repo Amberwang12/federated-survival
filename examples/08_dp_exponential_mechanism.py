@@ -1,18 +1,24 @@
 # -*- coding: UTF-8 -*-
 """
-示例 08：指数机制 (Exponential Mechanism)
+Example 08: Exponential Mechanism
 
-差分隐私的指数机制不用于梯度加噪, 而用于离散选择问题
-(如模型选择、超参挑选、客户端选择)。它按质量得分以指数概率采样,
-高分项更可能被选中, 同时保证隐私。
+The exponential mechanism of differential privacy is not for adding noise to
+gradients, but for discrete selection problems (e.g. model selection,
+hyperparameter picking, client selection). It samples candidates with
+exponential probability by quality score: higher-scored items are more
+likely to be selected while privacy is preserved.
 
-本示例演示:
-  1) 用指数机制从候选模型配置中做私有选择
-  2) 对比 Gaussian / Laplace 两种噪声机制对张量的加噪效果
+This example demonstrates:
+  1) Private selection among candidate model configurations via the exponential mechanism
+  2) Comparing the noise injected by the Gaussian / Laplace mechanisms on a tensor
 
-方法路径: federated_survival.core.differential_privacy.DifferentialPrivacy
+The closing notes also explain how DP affects federated learning: the
+exponential mechanism protects discrete selections without touching gradients
+(no training utility cost), unlike gradient-noise mechanisms (see example 07).
+
+API path: federated_survival.core.differential_privacy.DifferentialPrivacy
           .exponential_mechanism / add_gaussian_noise / add_laplace_noise
-运行方式: python examples/08_dp_exponential_mechanism.py
+Run: python examples/08_dp_exponential_mechanism.py
 """
 import os
 import sys
@@ -26,13 +32,14 @@ from federated_survival.core.differential_privacy import DifferentialPrivacy
 
 
 def main():
-    print("=== 示例 08: 指数机制 ===\n")
+    print("=== Example 08: Exponential Mechanism ===\n")
 
     np.random.seed(42)
 
-    # 指数机制配置
-    # 注: epsilon 越大, 分布越陡峭 (高分项越占优); 这里取 10 以便
-    # 在有限采样次数内直观看出 "高分高概率" 的趋势。
+    # Exponential mechanism configuration
+    # Note: the larger epsilon is, the sharper the distribution (higher-scored
+    # items dominate); here we use 10 so the "high score, high probability"
+    # trend is visible within a limited number of samples.
     config = FSAConfig(
         use_differential_privacy=True,
         dp_mechanism="exponential",
@@ -41,35 +48,36 @@ def main():
     )
     dp = DifferentialPrivacy(config)
 
-    # 场景: 5 个候选模型配置, 每个有一个验证集质量得分
-    # 得分差距拉开, 便于观察指数机制的概率倾斜
-    candidates = torch.randn(5, 20)  # 5 个候选配置, 每个 20 维
+    # Scenario: 5 candidate model configurations, each with a validation quality score
+    # Scores are spread out to make the probability tilt of the exponential mechanism easier to observe
+    candidates = torch.randn(5, 20)  # 5 candidate configs, each 20-dimensional
     quality_scores = torch.tensor([0.50, 0.65, 0.90, 0.75, 0.80])
-    print("候选配置数: {}".format(len(candidates)))
-    print("质量得分: {}\n".format(quality_scores.tolist()))
+    print("Number of candidate configs: {}".format(len(candidates)))
+    print("Quality scores: {}\n".format(quality_scores.tolist()))
 
-    # 1) 多次采样, 观察选择分布 (高分被选概率更大, 但有随机性)
-    print("1) 采样 3000 次的选择分布:")
+    # 1) Sample repeatedly to observe the selection distribution
+    #    (higher scores are selected with higher probability, but with randomness)
+    print("1) Selection distribution over 3000 samples:")
     counts = np.zeros(5, dtype=int)
     n_trials = 3000
     for _ in range(n_trials):
         idx = dp.exponential_mechanism(candidates, quality_scores)
         counts[idx] += 1
-    # 理论概率 P(i) ∝ exp(eps * q_i / (2 * sensitivity)), 用于对照
+    # Theoretical probability P(i) ∝ exp(eps * q_i / (2 * sensitivity)), for reference
     scores_np = quality_scores.cpu().numpy()
     theory = np.exp(config.dp_epsilon * scores_np / (2 * config.dp_sensitivity))
     theory = theory / theory.sum()
-    print("   候选  得分   选中占比   理论概率")
+    print("   Candidate  Score   Selected   Theory")
     for i, (s, c) in enumerate(zip(quality_scores.tolist(), counts)):
         print("     {}  {:.2f}   {:6.1%}    {:6.1%}".format(
             i, s, c / n_trials, theory[i]))
 
-    # 2) 单次选择, 直接返回选中配置的张量
+    # 2) Single selection, directly returning the selected config tensor
     selected = dp.exponential_mechanism_tensor(candidates, quality_scores)
-    print("\n2) 单次选择返回的配置张量形状: {}".format(selected.shape))
+    print("\n2) Shape of the config tensor returned by a single selection: {}".format(selected.shape))
 
-    # 3) 噪声机制对比: 对同一张量加 Gaussian / Laplace 噪声
-    print("\n3) 噪声机制对比 (对零张量加噪):")
+    # 3) Noise mechanism comparison: add Gaussian / Laplace noise to the same tensor
+    print("\n3) Noise mechanism comparison (noise added to a zero tensor):")
     t = torch.zeros(5)
 
     config_g = FSAConfig(
@@ -85,19 +93,33 @@ def main():
     dp_l = DifferentialPrivacy(config_l)
     l = dp_l.add_laplace_noise(t)
 
-    print("   原始:       {}".format([round(x, 4) for x in t.tolist()]))
+    print("   Original:   {}".format([round(x, 4) for x in t.tolist()]))
     print("   Gaussian:   {}".format([round(x, 4) for x in g.tolist()]))
     print("   Laplace:    {}".format([round(x, 4) for x in l.tolist()]))
 
-    print("\n说明:")
-    print("  指数机制:   离散选择, 按概率采样, 不加噪, 保持输出语义")
-    print("  Gaussian:   (eps,delta)-DP, 正态噪声, 对称, 适合深度学习")
-    print("  Laplace:    eps-DP, 拉普拉斯噪声, 尾部更重, 适合数值查询")
-    print("\n  epsilon 的作用:")
-    print("    eps 越大 -> 分布越陡峭, 高分项越占优 (隐私越弱)")
-    print("    eps 越小 -> 分布越平坦, 接近均匀采样 (隐私越强)")
-    print("    实践中需在 '隐私强度' 与 '选择质量' 之间权衡")
-    print("\n=== 示例 08 完成 ===")
+    print("\nNotes:")
+    print("  Exponential mechanism: discrete selection, probability sampling, no noise added, preserves output semantics")
+    print("  Gaussian:   (eps,delta)-DP, normal noise, symmetric, suited to deep learning")
+    print("  Laplace:    eps-DP, Laplace noise, heavier tails, suited to numerical queries")
+    print("\n  Role of epsilon:")
+    print("    Larger eps -> sharper distribution, higher-scored items dominate (weaker privacy)")
+    print("    Smaller eps -> flatter distribution, close to uniform sampling (stronger privacy)")
+    print("    In practice, trade off between 'privacy strength' and 'selection quality'")
+    print("\n  How DP affects federated learning (see example 07 for a measured demo):")
+    print("    - The exponential mechanism protects DISCRETE choices (model selection,")
+    print("      client selection, hyperparameter picking). It never touches gradients,")
+    print("      so it does NOT slow down or degrade federated training itself.")
+    print("    - In contrast, applying Gaussian/Laplace noise to client updates (the")
+    print("      use_differential_privacy=True path) perturbs every aggregate of every")
+    print("      round: T x E noisy updates in total. When the noise scale sigma is")
+    print("      comparable to the clipped update norm, the aggregate carries almost no")
+    print("      usable gradient signal and the model barely improves (C-index can be")
+    print("      frozen at chance level); with small sigma utility is preserved but the")
+    print("      true privacy loss can be orders of magnitude above the nominal epsilon.")
+    print("    - Rule of thumb: use the exponential mechanism wherever the output is a")
+    print("      choice, and reserve gradient noise for when record-level DP of the")
+    print("      training data itself is required - and expect a utility price there.")
+    print("\n=== Example 08 Done ===")
 
 
 if __name__ == "__main__":

@@ -22,6 +22,7 @@ or production-deployment guarantee. See [Privacy scope](docs/privacy.md).
 | --- | --- | --- | --- |
 | Simulate a survival table | `fs.simulate_data(...)` | Weibull, log-normal, SDGM1–4 | pandas survival table |
 | Load and normalize a survival table | `fs.load_data(...)` | CSV or Excel | canonical feature/time/status table |
+| Load a bundled real dataset | `fs.load_real_data("gbsg")` | GBSG breast cancer, colon cancer (death) | canonical feature/time/status table |
 | Partition into train/test and clients | `fs.partition_data(...)` | IID, random, censoring-non-IID, time-non-IID, Dirichlet | train/test data and client arrays |
 | Build paired partitions per seed | `fs.partition_data_many(...)` | one partition per seed | seed-to-partition mapping |
 | Compare Center/Federated/Local for one model–protocol pair | `fs.compare_methods(...)` | one model and one protocol | Center, Federated, Local-client, and Weighted Local results |
@@ -218,10 +219,11 @@ result = fs.compare_methods(
     split,
     model="DeepSurv",
     protocol="FedAvg",
-    global_rounds=10,
-    local_steps=5,
-    reference_steps=50,
+    global_rounds=30,
+    local_steps=1,
+    reference_steps=30,
     batch_size=32,
+    learning_rate=0.003,
     seed=42,
 )
 print(result.metrics[["method", "client", "c_index", "ibs"]])
@@ -251,6 +253,29 @@ fs.plot_augmentation_comparison(
 )
 ```
 
+To train a plain federated model and an augmented one under the same budget,
+use the high-level estimator on the same split:
+
+```python
+common = dict(
+    model="DeepSurv", protocol="FedAvg", n_clients=3,
+    global_rounds=30, local_steps=1, batch_size=32, learning_rate=0.003,
+    random_state=42,
+)
+plain = fs.FederatedSurvival(**common).fit(split)
+enhanced = fs.FederatedSurvival(
+    **common, k=0.3, augmentation_sampling="unconditional",
+    latent_num=5, beta=5,
+).fit(split, augmentation="MVAEC")
+print(plain.get_run_summary()["final_metrics"]["test_Cindex"])
+print(enhanced.get_run_summary()["final_metrics"]["test_Cindex"])
+```
+
+On this time-non-IID partition the augmented run clearly improves on the plain
+federated run (about 0.58 vs 0.55 C-index), and both beat per-client local
+training. See [Augmentation and privacy calls](docs/augmentation-privacy.md)
+for the tuned multi-seed configurations and their measured results.
+
 ## Example 2: real CSV data
 
 Prepare a CSV with feature columns plus duration and event columns, for
@@ -262,20 +287,18 @@ age,tumor_size,marker,time,status
 67,3.0,0.41,391,0
 ```
 
-The following example performs five paired repetitions, creates
-censoring-non-IID clients, runs DeepSurv with FedProx, and produces C-index and
-IBS boxplots. Replace the path and column names with your own data definition.
+The following example performs five paired repetitions on the bundled GBSG
+breast-cancer table, creates censoring-non-IID clients, runs DeepSurv with
+FedProx, and produces C-index and IBS boxplots. To use your own data, replace
+the `load_real_data` call with `fs.load_data("your_file.csv", ...)` and adjust
+the column names.
 
 ```python
 from pathlib import Path
 import federated_survival as fs
 
 output = Path("results/real_data_example")
-data = fs.load_data(
-    "my_survival_data.csv",
-    duration_column="time",
-    event_column="status",
-)
+data = fs.load_real_data("gbsg")  # bundled GBSG table, ships with the package
 splits = fs.partition_data_many(
     data,
     seeds=[0, 1, 2, 3, 4],
@@ -290,9 +313,9 @@ result = fs.compare_methods(
     model="DeepSurv",
     protocol="FedProx",
     protocol_params={"mu": 0.01},
-    global_rounds=10,
-    local_steps=5,
-    reference_steps=50,
+    global_rounds=30,
+    local_steps=1,
+    reference_steps=30,
     batch_size=32,
     learning_rate=0.001,
 )
