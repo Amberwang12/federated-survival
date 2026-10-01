@@ -62,6 +62,51 @@ def load_data(
     return frame.rename(columns={duration_column: "time", event_column: "status"})
 
 
+#: Directory holding the real datasets bundled with the installed package
+#: (``federated_survival/data/real/``).
+_BUNDLED_REAL_DATA_DIR = Path(__file__).resolve().parent / "real"
+
+
+def available_real_datasets() -> list:
+    """Return the sorted names of real datasets bundled with the package."""
+    if not _BUNDLED_REAL_DATA_DIR.is_dir():
+        return []
+    return sorted(p.stem for p in _BUNDLED_REAL_DATA_DIR.glob("*.csv"))
+
+
+def load_real_data(
+    name: str = "gbsg",
+    *,
+    duration_column: str = "time",
+    event_column: str = "status",
+) -> pd.DataFrame:
+    """Load a real survival dataset bundled with the installed package.
+
+    Bundled tables live inside the package itself
+    (``federated_survival/data/real/``), so they are available after a normal
+    ``pip install`` -- no repository clone or manual data download needed.
+    Use :func:`available_real_datasets` to list the shipped names.
+
+    Args:
+        name: Dataset name, e.g. ``"gbsg"`` for the GBSG breast-cancer table.
+        duration_column: Column treated as survival time (kept as ``"time"``).
+        event_column: Column treated as the event indicator (kept as ``"status"``).
+
+    Returns:
+        pd.DataFrame: Canonical ``x1..xp/time/status`` table, identical to
+        what :func:`load_data` returns.
+    """
+    if not name or Path(name).name != name:
+        raise ValueError(f"Invalid dataset name: {name!r}")
+    path = _BUNDLED_REAL_DATA_DIR / f"{name}.csv"
+    if not path.exists():
+        available = ", ".join(available_real_datasets()) or "(none)"
+        raise FileNotFoundError(
+            f"Dataset {name!r} is not bundled with the package. Available: {available}"
+        )
+    return load_data(path, duration_column=duration_column, event_column=event_column)
+
+
 def partition_data(
     data: pd.DataFrame,
     n_clients: int = 3,

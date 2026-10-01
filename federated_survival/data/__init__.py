@@ -7,7 +7,9 @@ from .augmentation_workflow import (
     summarize_augmentation,
 )
 from .workflow import (
+    available_real_datasets,
     load_data,
+    load_real_data,
     partition_data,
     partition_data_many,
     plot_partition,
@@ -21,6 +23,8 @@ __all__ = [
     "DataSplitter",
     "simulate_data",
     "load_data",
+    "load_real_data",
+    "available_real_datasets",
     "partition_data",
     "partition_data_many",
     "plot_partition",
