@@ -5,44 +5,44 @@ import torch.nn as nn
 
 @dataclass
 class FSAConfig:
-    """联邦生存分析配置类"""
+    """Configuration class for federated survival analysis."""
 
-    # 数据参数
-    dataset_name: Optional[str] = None  # 使用真实数据集时的名称
-    mode: str = "simulate"  # 可选: 'real', 'simulate'
+    # Data parameters
+    dataset_name: Optional[str] = None  # Dataset name when using real data
+    mode: str = "simulate"  # Options: 'real', 'simulate'
 
-    # 数据配置
-    n_samples: int = 1000  # 样本数
-    n_features: int = 20  # 特征数
-    censor_rate: float = 0.4  # 删失率
-    data_type: str = "weibull"  # 可选: 'weibull', 'lognormal', '1', '2', '3', '4'
-    sim_type: str = "1"  # 模拟数据类型
+    # Data configuration
+    n_samples: int = 1000  # Number of samples
+    n_features: int = 20  # Number of features
+    censor_rate: float = 0.4  # Censoring rate
+    data_type: str = "weibull"  # Options: 'weibull', 'lognormal', '1', '2', '3', '4'
+    sim_type: str = "1"  # Simulation data type
 
-    # 模型参数
-    model_type: str = "PC-Hazard"  # 模型类型
-    num_nodes: Tuple[int, ...] = (32, 32)  # 网络层数和节点数
-    num_durations: int = 25  # 时间离散化数量
-    batch_norm: bool = False  # 是否使用批标准化
-    dropout: float = 0.1  # Dropout率
-    activation: nn.Module = nn.ReLU  # 激活函数
+    # Model parameters
+    model_type: str = "PC-Hazard"  # Model type
+    num_nodes: Tuple[int, ...] = (32, 32)  # Number of layers and nodes per layer
+    num_durations: int = 25  # Number of discretized time intervals
+    batch_norm: bool = False  # Whether to use batch normalization
+    dropout: float = 0.1  # Dropout rate
+    activation: nn.Module = nn.ReLU  # Activation function
 
-    # 联邦学习参数
-    num_clients: int = 5  # 客户端数量
-    global_epochs: int = 50  # 全局训练轮数
-    early_stopping: bool = False  # 是否使用早停
-    early_stopping_patience: int = 10  # 早停的轮数
-    local_epochs: int = 1  # 每轮聚合前的本地更新步数E（历史字段名）
-    batch_size: int = 32  # 批次大小
-    full_batch: bool = False  # False为独立mini-batch Local SGD；True仅作全批量特例
-    learning_rate: float = 1e-3  # 学习率
-    optimizer: str = "adam"  # 可选: 'adam', 'sgd'
-    weight_decay: float = 0.05  # 优化器权重衰减
-    client_sample_ratio: float = 1.0  # 每轮选择的客户端比例
-    split_method: str = "iid"  # 数据划分方式，可选: 'iid', 'non-iid', 'time-non-iid'
+    # Federated learning parameters
+    num_clients: int = 5  # Number of clients
+    global_epochs: int = 50  # Number of global training rounds
+    early_stopping: bool = False  # Whether to use early stopping
+    early_stopping_patience: int = 10  # Early stopping patience (rounds)
+    local_epochs: int = 1  # Local update steps E before each aggregation (legacy field name)
+    batch_size: int = 32  # Batch size
+    full_batch: bool = False  # False for independent mini-batch local SGD; True only as a full-batch special case
+    learning_rate: float = 1e-3  # Learning rate
+    optimizer: str = "adam"  # Options: 'adam', 'sgd'
+    weight_decay: float = 0.05  # Optimizer weight decay
+    client_sample_ratio: float = 1.0  # Fraction of clients selected per round
+    split_method: str = "iid"  # Data split method, options: 'iid', 'non-iid', 'time-non-iid'
 
-    # 联邦协议参数
+    # Federated protocol parameters
     federated_protocol: str = "FedAvg"  # FedAvg, FedProx, FedOpt, WebDISCO-style
-    proximal_mu: float = 0.01  # FedProx近端项系数
+    proximal_mu: float = 0.01  # FedProx proximal term coefficient
     server_optimizer: str = "adam"  # FedOpt: adam, yogi, adagrad
     server_learning_rate: float = 0.01
     server_beta1: float = 0.9
@@ -54,8 +54,8 @@ class FSAConfig:
     webdisco_ridge: float = 1e-8
     webdisco_max_step_norm: float = 5.0
 
-    # 数据增强参数
-    k: float = 0.5  # 增强数据比例
+    # Data augmentation parameters
+    k: float = 0.5  # Proportion of augmented data
     latent_num: int = 10
     hidden_num: int = 30
     alpha: float = 1.0
@@ -63,42 +63,42 @@ class FSAConfig:
     augmentation_sampling: str = "sparse"
     augmentation_sparse_gamma: float = 0.1
 
-    # 差分隐私参数
-    use_differential_privacy: bool = False  # 是否使用差分隐私
-    dp_mechanism: str = "gaussian"  # 差分隐私机制: 'gaussian', 'laplace', 'exponential'
-    dp_epsilon: float = 1.0  # 隐私预算 (ε)
-    dp_delta: float = 1e-5  # 失败概率 (δ) - 仅高斯机制需要
-    dp_sensitivity: float = 1.0  # 敏感度
-    dp_noise_multiplier: float = 1.0  # 噪声乘数 - 仅高斯机制使用
-    dp_clip_norm: float = 1.0  # 梯度裁剪范数
+    # Differential privacy parameters
+    use_differential_privacy: bool = False  # Whether to use differential privacy
+    dp_mechanism: str = "gaussian"  # Differential privacy mechanism: 'gaussian', 'laplace', 'exponential'
+    dp_epsilon: float = 1.0  # Privacy budget (epsilon)
+    dp_delta: float = 1e-5  # Failure probability (delta) - required only for the Gaussian mechanism
+    dp_sensitivity: float = 1.0  # Sensitivity
+    dp_noise_multiplier: float = 1.0  # Noise multiplier - used only by the Gaussian mechanism
+    dp_clip_norm: float = 1.0  # Gradient clipping norm
 
-    # 其他参数
-    verbose: bool = False  # 是否打印详细信息
-    show_progress: bool = False  # 是否显示tqdm进度条
-    random_seed: int = 42  # 随机种子
+    # Other parameters
+    verbose: bool = False  # Whether to print verbose output
+    show_progress: bool = False  # Whether to show the tqdm progress bar
+    random_seed: int = 42  # Random seed
     evaluation_quantiles: Tuple[float, float] = (0.05, 0.95)
     cox_loss_normalization: str = "patient"  # 'event' reproduces raw pycox scaling
     prediction_validation: str = "raise"  # 'raise', 'warn', or 'none'
 
-    # 基础配置
+    # Base configuration
     n_rounds: int = 100
     random_state: Optional[int] = None
 
-    # 模型配置
+    # Model configuration
     model_params: Dict[str, Any] = field(default_factory=dict)
 
-    # 数据划分配置
-    split_alpha: float = 0.5  # 用于non-iid划分的狄利克雷分布参数
+    # Data split configuration
+    split_alpha: float = 0.5  # Dirichlet distribution parameter for non-iid splits
     test_size: float = 0.2
 
     def __post_init__(self):
-        """验证配置参数的有效性"""
-        # 验证模式
+        """Validate configuration parameters."""
+        # Validate mode
         valid_modes = ["real", "simulate"]
         if self.mode not in valid_modes:
             raise ValueError(f"mode must be one of {valid_modes}")
 
-        # 在real模式下需要提供数据集名称
+        # A dataset name is required in 'real' mode
         if self.mode == "real" and self.dataset_name is None:
             raise ValueError("dataset_name must be provided when mode is 'real'")
 
@@ -155,7 +155,7 @@ class FSAConfig:
         if not 0 <= q_low < q_high <= 1:
             raise ValueError("evaluation_quantiles must satisfy 0 <= low < high <= 1")
 
-        # 验证模型类型
+        # Validate model type
         # Resolve model support through the public registry so third-party
         # adapters can be configured without editing this dataclass.
         from ..models import available_model_adapters
@@ -164,14 +164,14 @@ class FSAConfig:
         if self.model_type not in valid_model_types:
             raise ValueError(f"model_type must be one of {valid_model_types}")
 
-        # 验证CoxPH的中间层参数
+        # Validate intermediate layer parameters for CoxPH
         if self.model_type == "CoxPH":
             if self.num_nodes != ():
                 raise ValueError("num_nodes must be () for CoxPH")
 
         protocol.validate_config(self)
 
-        # 验证数据划分方法
+        # Validate data split method
         self.split_method = self.split_method.lower()
         valid_split_methods = [
             "iid",
@@ -184,13 +184,13 @@ class FSAConfig:
         if self.split_method not in valid_split_methods:
             raise ValueError(f"split_method must be one of {valid_split_methods}")
 
-        # 验证数值范围
+        # Validate numerical ranges
         if not 0 < self.test_size < 1:
             raise ValueError("test_size must be between 0 and 1")
         if not 0 < self.k < 1:
             raise ValueError("k must be between 0 and 1")
 
-        # 验证数据增强参数
+        # Validate data augmentation parameters
         if self.latent_num <= 0:
             raise ValueError("latent_num must be positive")
         if self.hidden_num <= 0:
@@ -205,48 +205,48 @@ class FSAConfig:
         if self.beta <= 0:
             raise ValueError("beta must be positive")
 
-        # 验证num_durations
+        # Validate num_durations
         if self.num_durations <= 0:
             raise ValueError("num_durations must be positive")
 
-        # 验证dropout
+        # Validate dropout
         if not 0 <= self.dropout <= 1:
             raise ValueError("dropout must be between 0 and 1")
 
-        # 验证n_rounds
+        # Validate n_rounds
         if self.n_rounds <= 0:
             raise ValueError("n_rounds must be positive")
 
-        # 验证split_alpha
+        # Validate split_alpha
         if self.split_alpha <= 0:
             raise ValueError("split_alpha must be positive")
 
-        # 验证差分隐私参数
+        # Validate differential privacy parameters
         if self.use_differential_privacy:
-            # 验证机制类型
+            # Validate mechanism type
             valid_dp_mechanisms = ["gaussian", "laplace", "exponential"]
             if self.dp_mechanism not in valid_dp_mechanisms:
                 raise ValueError(f"dp_mechanism must be one of {valid_dp_mechanisms}")
 
-            # 通用参数验证
+            # Validate common parameters
             if self.dp_epsilon <= 0:
                 raise ValueError("dp_epsilon must be positive")
             if self.dp_sensitivity <= 0:
                 raise ValueError("dp_sensitivity must be positive")
 
-            # 高斯机制特定参数
+            # Gaussian mechanism specific parameters
             if self.dp_mechanism == "gaussian":
                 if not 0 < self.dp_delta < 1:
                     raise ValueError("dp_delta must be between 0 and 1 for Gaussian mechanism")
                 if self.dp_noise_multiplier <= 0:
                     raise ValueError("dp_noise_multiplier must be positive for Gaussian mechanism")
 
-            # 梯度裁剪参数验证（适用于高斯和拉普拉斯机制）
+            # Validate gradient clipping parameters (applies to Gaussian and Laplace mechanisms)
             if self.dp_mechanism in ["gaussian", "laplace"]:
                 if self.dp_clip_norm <= 0:
                     raise ValueError("dp_clip_norm must be positive")
 
-        # 设置默认模型参数
+        # Set default model parameters
         if not self.model_params:
             if self.model_type == "PC-Hazard":
                 self.model_params = {"n_intervals": 10, "hidden_size": 32, "dropout": 0.1}

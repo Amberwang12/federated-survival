@@ -1,5 +1,5 @@
 """
-客户端类
+Client class
 """
 import copy
 import torch
@@ -13,17 +13,17 @@ from ..models import get_model_adapter
 from ..protocols import get_federated_protocol
 
 class Client:
-    """客户端类"""
+    """Client class."""
     
     def __init__(self, config, global_model, client_data, client_id, protocol=None):
         """
-        初始化客户端
-        
+        Initialize a client.
+
         Args:
-            config: 联邦学习配置
-            global_model: 全局模型
-            client_data: 客户端数据
-            client_id: 客户端ID
+            config: Federated learning configuration.
+            global_model: The global model.
+            client_data: The client's local data.
+            client_id: The client identifier.
         """
         self.config = config
         self.client_id = client_id
@@ -33,7 +33,7 @@ class Client:
             self.protocol.begin_run(config, global_model.state_dict())
         self.local_model = copy.deepcopy(global_model)
         
-        # 确保X和y是numpy数组
+        # Ensure X and y are numpy arrays
         self.X = np.array(client_data[0], dtype=np.float32)
         self.y = np.array(client_data[1], dtype=np.float32)
         self.N = len(self.X)
@@ -42,30 +42,30 @@ class Client:
             raise ValueError(f"Client {client_id} has no observed events")
         self.event_fraction = event_count / self.N
         
-        # 转换标签
+        # Transform labels
         self.client_label_transform()
         
-        # 初始化差分隐私工具
+        # Initialize the differential privacy tool
         if self.config.use_differential_privacy:
             self.dp_tool = DifferentialPrivacy(config)
         else:
             self.dp_tool = None
         
     def client_label_transform(self):
-        """标签转换"""
+        """Label transformation."""
         self.labtrans = getattr(self.config, 'labtrans', None)
         self.y = self.adapter.transform_target(self.y, self.labtrans)
             
     def local_train(self, global_model, epoch: int) -> nn.Module:
         """
-        本地训练
-        
+        Local training.
+
         Args:
-            global_model: 全局模型
-            epoch: 当前轮次
-            
+            global_model: The global model.
+            epoch: The current round number.
+
         Returns:
-            nn.Module: 训练后的本地模型
+            nn.Module: The trained local model.
         """
         global_state = {
             name: value.detach().clone()
@@ -75,7 +75,7 @@ class Client:
             
         self.local_model.train()
         
-        # 创建优化器
+        # Create the optimizer
         optimizer_class = torch.optim.SGD if self.config.optimizer == 'sgd' else torch.optim.Adam
         optimizer = optimizer_class(
             self.local_model.parameters(),
@@ -110,7 +110,7 @@ class Client:
             ),
         )
         
-        # 如果启用差分隐私，对更新后的权重应用差分隐私保护
+        # If differential privacy is enabled, apply DP protection to the updated weights
         if self.dp_tool is not None:
             private_weights = self.dp_tool.privatize_model_update(
                 global_state,
@@ -140,5 +140,5 @@ class Client:
             float(history[loss_columns[0]].iloc[-1]) if loss_columns else float('nan')
         )
         
-        # 返回训练后的模型
+        # Return the trained model
         return local_model.net.eval() 

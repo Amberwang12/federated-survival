@@ -138,22 +138,22 @@ def main() -> None:
         if not full and not partial:
             continue
         print("=" * 78)
-        print(f"{path}  [{pct:.1f}%]  完全未覆盖函数 {len(full)} 个 / 部分覆盖 {len(partial)} 个")
+        print(f"{path}  [{pct:.1f}%]  fully-uncovered functions: {len(full)} / partially covered: {len(partial)}")
         if full:
-            print("  -- 完全未执行 --")
+            print("  -- never executed --")
             for qn, start, end in full:
                 print(f"     L{start:<5}-{end:<5} {qn}")
         if partial and not args.only_full:
-            print("  -- 部分执行（缺失行） --")
+            print("  -- partially executed (missing lines) --")
             for qn, start, end, lines in partial[:12]:
                 shown = ", ".join(str(x) for x in lines[:14])
                 more = " ..." if len(lines) > 14 else ""
-                print(f"     L{start:<5}-{end:<5} {qn}  缺失: {shown}{more}")
+                print(f"     L{start:<5}-{end:<5} {qn}  missing: {shown}{more}")
             if len(partial) > 12:
-                print(f"     ... 另有 {len(partial) - 12} 个部分覆盖函数")
+                print(f"     ... and {len(partial) - 12} more partially covered functions")
 
     print("=" * 78)
-    print(f"完全未覆盖函数总数: {total_full}")
+    print(f"Total fully-uncovered functions: {total_full}")
 
 
 if __name__ == "__main__":

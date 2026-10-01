@@ -6,7 +6,7 @@ import random
 
 
 class DataAugmenter:
-    """数据增强器，支持MVAES和MVAEC两种增强方法"""
+    """Data augmenter supporting the MVAES and MVAEC augmentation methods."""
 
     def __init__(
         self,
@@ -18,16 +18,18 @@ class DataAugmenter:
         sparse_gamma: float = 0.1,
     ):
         """
-        初始化数据增强器
+        Initialize the data augmenter.
 
         Args:
-            latent_num: 潜在空间维度
-            hidden_num: 隐藏层维度
-            alpha: KL散度权重
-            beta: 条件损失权重
-            sampling: ``sparse`` 在时间稀疏半区附近条件采样；
-                ``unconditional`` 从标准正态潜空间采样
-            sparse_gamma: 稀疏区潜变量周围的噪声标准差
+            latent_num: Dimension of the latent space.
+            hidden_num: Dimension of the hidden layers.
+            alpha: Weight of the KL divergence loss.
+            beta: Weight of the conditional loss.
+            sampling: ``sparse`` performs conditional sampling around the
+                latent codes of the time-sparse half region;
+                ``unconditional`` samples from the standard normal latent space.
+            sparse_gamma: Standard deviation of the noise added around the
+                latent codes of the sparse region.
         """
         sampling = str(sampling).lower().replace("-", "_")
         if sampling not in {"sparse", "unconditional"}:
@@ -81,18 +83,18 @@ class DataAugmenter:
         self, train_X: np.ndarray, train_y: np.ndarray, k: float = 1.0
     ) -> Tuple[np.ndarray, np.ndarray]:
         """
-        对单个客户端进行数据增强
+        Augment the data of a single client.
 
         Args:
-            train_X: 特征数据
-            train_y: 标签数据
-            k: 增强比例
+            train_X: Feature data.
+            train_y: Label data.
+            k: Augmentation ratio.
 
         Returns:
-            Tuple[np.ndarray, np.ndarray]: 增强后的特征数据和标签数据
+            Tuple[np.ndarray, np.ndarray]: Augmented feature data and label data.
         """
 
-        # 检查k是否在0-1之间
+        # Check that k is within (0, 1]
         if k <= 0 or k > 1:
             raise ValueError("k must be in the range (0, 1]")
 
@@ -105,7 +107,7 @@ class DataAugmenter:
                 np.empty((0, 2), dtype=np.float32),
             )
 
-        # 只使用未删失数据进行训练
+        # Only uncensored data is used for training
         mask = train_y[:, 1] == 1
         vae = vae_train(
             train_X[mask],
@@ -125,17 +127,17 @@ class DataAugmenter:
         return vae.condition_sample(sparse_index, sample_num, gamma=self.sparse_gamma)
 
     def _check_clients_set(self, clients_set: Dict[str, Tuple[np.ndarray, np.ndarray]]):
-        """检查客户端数据集是否符合要求"""
-        # 检查clients_set是否为空
+        """Validate the client datasets."""
+        # Check that clients_set is not empty
         if not clients_set:
             raise ValueError("clients_set cannot be empty")
 
-        # 每个客户端数据量不少于10个
+        # Each client must have at least 10 samples
         for i in clients_set.keys():
             if clients_set[i][0].shape[0] < 10:
                 raise ValueError("each client must have at least 10 samples")
 
-        # 每个客户端必须要有未删失样本
+        # Each client must have at least one uncensored sample
         for i in clients_set.keys():
             if np.sum(clients_set[i][1][:, 1] == 1) == 0:
                 raise ValueError("each client must have at least one uncensored sample")
@@ -144,20 +146,22 @@ class DataAugmenter:
         self, clients_set: Dict[str, Tuple[np.ndarray, np.ndarray]], k: float = 1.0
     ) -> Dict[str, Tuple[np.ndarray, np.ndarray]]:
         """
-         MVAES (Multi-task Variational Autoencoder at the server) 方法
-        收集所有客户端增强的数据到服务器，然后分配给每个客户端
+        MVAES (Multi-task Variational Autoencoder at the Server) method.
+        Collect the augmented data from all clients at the server, then
+        redistribute it to each client.
 
-         Args:
-             clients_set: 客户端数据集
-             k: 增强比例
+        Args:
+            clients_set: Client datasets.
+            k: Augmentation ratio.
 
-         Returns:
-             Dict[str, Tuple[np.ndarray, np.ndarray]]: (增强数据集, 原始+增强数据集)
+        Returns:
+            Dict[str, Tuple[np.ndarray, np.ndarray]]: Mapping of client ID to
+                (augmented dataset, original + augmented dataset).
         """
 
         self._check_clients_set(clients_set)
 
-        # 收集所有客户端增强的数据到服务器
+        # Collect the augmented data from all clients at the server
         first_features = next(iter(clients_set.values()))[0]
         all_aug_X, all_aug_y = np.empty(
             shape=(0, first_features.shape[1]), dtype=np.float32
@@ -174,9 +178,8 @@ class DataAugmenter:
             all_aug_X = np.vstack((all_aug_X, X_pre))
             all_aug_y = np.vstack((all_aug_y, y_pre))
 
-        # 分配数据(根据本地非删失的样本数进行增强)
-
-        # 将增强数据分配给每个客户端
+        # Redistribute the augmented data to each client
+        # (proportional to each client's local number of uncensored samples)
         for i in clients_set.keys():
             train_X, train_y = clients_set[i][0], clients_set[i][1]
 
@@ -197,15 +200,16 @@ class DataAugmenter:
         self, clients_set: Dict[str, Tuple[np.ndarray, np.ndarray]], k: float = 1.0
     ) -> Dict[str, Tuple[np.ndarray, np.ndarray]]:
         """
-        MVAEC (Multi-task Variational Autoencoder at the client) 方法
-        客户端生成的数据对自身进行增强
+        MVAEC (Multi-task Variational Autoencoder at the Client) method.
+        Each client is augmented with the synthetic samples it generates itself.
 
         Args:
-            clients_set: 客户端数据集
-            k: 增强比例
+            clients_set: Client datasets.
+            k: Augmentation ratio.
 
         Returns:
-            Dict[str, Tuple[np.ndarray, np.ndarray]]: (增强数据集, 原始+增强数据集)
+            Dict[str, Tuple[np.ndarray, np.ndarray]]: Mapping of client ID to
+                (augmented dataset, original + augmented dataset).
         """
 
         self._check_clients_set(clients_set)

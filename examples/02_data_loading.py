@@ -1,12 +1,13 @@
 # -*- coding: UTF-8 -*-
 """
-示例 02：数据加载 (DataLoader)
+Example 02: Data Loading (DataLoader)
 
-演示从 CSV / Excel 文件加载真实生存数据，并自动对齐为框架所需格式
-(x1, x2, ..., time, status)。
+Demonstrates loading real-world survival data from CSV / Excel files and
+automatically aligning it into the format required by the framework
+(x1, x2, ..., time, status).
 
-方法路径: federated_survival.data.loader.DataLoader.load
-运行方式: python examples/02_data_loading.py
+Method path: federated_survival.data.loader.DataLoader.load
+Run: python examples/02_data_loading.py
 """
 import os
 import sys
@@ -20,9 +21,10 @@ from federated_survival.data.generator import DataGenerator, SimulationConfig
 
 
 def main():
-    print("=== 示例 02: 数据加载 ===\n")
+    print("=== Example 02: Data Loading ===\n")
 
-    # 先用生成器造一份"真实数据"，写成 CSV，列名故意用业务名
+    # First generate "real data" with the generator, write it to CSV with
+    # intentionally business-style column names
     gen = DataGenerator(SimulationConfig(n_samples=300, n_features=6, random_state=42))
     df = gen.generate("weibull", c_mean=0.4)
     raw = df.rename(columns={f"x{i+1}": f"feat_{i+1}" for i in range(6)})
@@ -31,32 +33,33 @@ def main():
         suffix=".csv", delete=False, mode="w", encoding="utf-8")
     raw.to_csv(tmp.name, index=False)
     tmp.close()
-    print("已生成模拟数据文件: {}".format(tmp.name))
-    print("原始列名: {}\n".format(list(raw.columns)))
+    print("Generated simulated data file: {}".format(tmp.name))
+    print("Original columns: {}\n".format(list(raw.columns)))
 
-    # 方式一: 自动重命名特征列 (feature_columns=None)
-    print("方式一: 自动重命名特征列为 x1, x2, ...")
+    # Method 1: auto-rename feature columns (feature_columns=None)
+    print("Method 1: automatically rename feature columns to x1, x2, ...")
     loader_auto = DataLoader(time_column="time", status_column="status")
     data_auto = loader_auto.load(tmp.name)
-    print("  加载后列名: {}".format(list(data_auto.columns)))
-    print("  形状: {}\n".format(data_auto.shape))
+    print("  Columns after loading: {}".format(list(data_auto.columns)))
+    print("  Shape: {}\n".format(data_auto.shape))
 
-    # 方式二: 显式指定列名映射
-    print("方式二: 显式指定列名映射 (feature_columns)")
+    # Method 2: explicitly specify a column-name mapping
+    print("Method 2: explicitly specify a column-name mapping (feature_columns)")
     mapping = {f"feat_{i+1}": f"x{i+1}" for i in range(6)}
     loader_map = DataLoader(
         feature_columns=mapping, time_column="time", status_column="status")
     data_map = loader_map.load(tmp.name)
-    print("  加载后列名: {}".format(list(data_map.columns)))
-    print("  前 3 行:")
+    print("  Columns after loading: {}".format(list(data_map.columns)))
+    print("  First 3 rows:")
     print(data_map.head(3).to_string())
 
-    # 支持的格式说明
-    print("\n支持的文件格式: .csv / .xlsx / .xls")
-    print("要求: 数据必须包含 time 列和 status 列(列名可通过参数自定义)")
+    # Supported formats
+    print("\nSupported file formats: .csv / .xlsx / .xls")
+    print("Requirement: the data must contain a time column and a status column "
+          "(column names can be customized via parameters)")
 
     os.unlink(tmp.name)
-    print("\n=== 示例 02 完成 ===")
+    print("\n=== Example 02 done ===")
 
 
 if __name__ == "__main__":

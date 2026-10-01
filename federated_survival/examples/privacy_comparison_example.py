@@ -1,8 +1,11 @@
 """
-历史更新扰动效果对比示例（不提供端到端差分隐私保证）
+Example comparing the effect of perturbing client updates
+(no end-to-end differential privacy guarantee).
 
-本示例对比有无客户端更新扰动时的性能差异。当前实现没有逐样本裁剪和跨轮次
-accountant，epsilon/delta 参数不能解释为 record-level DP 保证。
+This example compares performance with and without client update
+perturbation. The current implementation has no per-example clipping or
+cross-round accountant, so the epsilon/delta parameters must not be
+interpreted as record-level DP guarantees.
 """
 import matplotlib.pyplot as plt
 import numpy as np
@@ -12,33 +15,33 @@ from federated_survival.data.generator import DataGenerator, SimulationConfig
 from federated_survival.data.splitter import DataSplitter
 
 def run_experiment(config, data, experiment_name):
-    """运行实验并返回结果"""
+    """Run an experiment and return the results."""
     print(f"\n=== {experiment_name} ===")
     runner = FSARunner(config)
     
-    # 获取隐私信息
+    # Get privacy information
     privacy_info = runner.get_privacy_info()
     if privacy_info["privacy_protection"]:
-        print("实验性客户端更新扰动已启用（不构成端到端 DP 保证）")
-        print(f"遗留 epsilon 参数: {privacy_info['epsilon']}")
-        print(f"噪声规模: {privacy_info['noise_scale']:.6f}")
+        print("Experimental client update perturbation enabled (not an end-to-end DP guarantee)")
+        print(f"Legacy epsilon parameter: {privacy_info['epsilon']}")
+        print(f"Noise scale: {privacy_info['noise_scale']:.6f}")
     else:
-        print("客户端更新扰动未启用")
+        print("Client update perturbation is not enabled")
     
-    # 运行训练
+    # Run training
     results = runner.run(data, type='raw')
     
-    print(f"最终性能:")
-    print(f"  训练 C-index: {results['train_Cindex'][-1]:.4f}")
-    print(f"  测试 C-index: {results['test_Cindex'][-1]:.4f}")
-    print(f"  训练 IBS: {results['train_IBS'][-1]:.4f}")
-    print(f"  测试 IBS: {results['test_IBS'][-1]:.4f}")
+    print(f"Final performance:")
+    print(f"  Training C-index: {results['train_Cindex'][-1]:.4f}")
+    print(f"  Test C-index: {results['test_Cindex'][-1]:.4f}")
+    print(f"  Training IBS: {results['train_IBS'][-1]:.4f}")
+    print(f"  Test IBS: {results['test_IBS'][-1]:.4f}")
     
     return results
 
 def plot_comparison(results_no_dp, results_with_dp):
-    """绘制对比结果"""
-    # 使用更现代的样式，避免已弃用的seaborn样式
+    """Plot the comparison results."""
+    # Use a more modern style, avoiding the deprecated seaborn style
     try:
         plt.style.use('seaborn-v0_8')
     except OSError:
@@ -55,7 +58,7 @@ def plot_comparison(results_no_dp, results_with_dp):
         'axes.spines.right': False,
     })
     
-    # 关闭所有已存在的图形窗口
+    # Close all existing figure windows
     plt.close('all')
     
     fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(16, 12))
@@ -106,10 +109,10 @@ def plot_comparison(results_no_dp, results_with_dp):
     plt.show()
 
 def main():
-    """主函数：对比有无差分隐私的效果"""
-    print("=== 差分隐私效果对比实验 ===\n")
-    
-    # 基础配置
+    """Main function: compare results with and without differential privacy."""
+    print("=== Differential Privacy Effect Comparison Experiment ===\n")
+
+    # Base configuration
     base_config = {
         'n_samples': 1000,
         'n_features': 20,
@@ -118,8 +121,8 @@ def main():
         'verbose': True,
     }
     
-    # 生成数据
-    print("生成模拟数据...")
+    # Generate data
+    print("Generating simulated data...")
     temp_config = FSAConfig(**base_config)
     sim_config = SimulationConfig(
         n_samples=temp_config.n_samples,
@@ -129,7 +132,7 @@ def main():
     generator = DataGenerator(sim_config)
     raw_data = generator.generate('weibull', c_mean=0.4)
 
-    # 分割数据为联邦学习格式
+    # Split data into federated learning format
     splitter = DataSplitter(
         n_clients=temp_config.num_clients,
         split_type='iid',
@@ -137,13 +140,13 @@ def main():
         random_state=temp_config.random_seed
     )
     data = splitter.split(raw_data)
-    print(f"数据生成完成，客户端数量: {len(data.clients_set)}")
+    print(f"Data generation complete, number of clients: {len(data.clients_set)}")
     
-    # 实验1：无差分隐私
+    # Experiment 1: without differential privacy
     config_no_dp = FSAConfig(**base_config, use_differential_privacy=False)
-    results_no_dp = run_experiment(config_no_dp, data, "无差分隐私")
-    
-    # 实验2：有差分隐私
+    results_no_dp = run_experiment(config_no_dp, data, "Without differential privacy")
+
+    # Experiment 2: with differential privacy
     config_with_dp = FSAConfig(
         **base_config,
         use_differential_privacy=True,
@@ -153,15 +156,15 @@ def main():
         dp_noise_multiplier=1.0,
         dp_clip_norm=1.0,
     )
-    results_with_dp = run_experiment(config_with_dp, data, "有差分隐私")
-    
-    # 绘制对比结果
-    print("\n绘制对比结果...")
+    results_with_dp = run_experiment(config_with_dp, data, "With differential privacy")
+
+    # Plot the comparison results
+    print("\nPlotting comparison results...")
     plot_comparison(results_no_dp, results_with_dp)
     
-    # 输出最终对比
-    print("\n=== 最终性能对比 ===")
-    print(f"{'指标':<15} {'无差分隐私':<12} {'有差分隐私':<12} {'差异':<12}")
+    # Print final comparison
+    print("\n=== Final Performance Comparison ===")
+    print(f"{'Metric':<15} {'No DP':<12} {'With DP':<12} {'Difference':<12}")
     print("-" * 55)
     
     train_cindex_diff = results_with_dp['train_Cindex'][-1] - results_no_dp['train_Cindex'][-1]
@@ -169,12 +172,12 @@ def main():
     train_ibs_diff = results_with_dp['train_IBS'][-1] - results_no_dp['train_IBS'][-1]
     test_ibs_diff = results_with_dp['test_IBS'][-1] - results_no_dp['test_IBS'][-1]
     
-    print(f"{'训练 C-index':<15} {results_no_dp['train_Cindex'][-1]:<12.4f} {results_with_dp['train_Cindex'][-1]:<12.4f} {train_cindex_diff:+.4f}")
-    print(f"{'测试 C-index':<15} {results_no_dp['test_Cindex'][-1]:<12.4f} {results_with_dp['test_Cindex'][-1]:<12.4f} {test_cindex_diff:+.4f}")
-    print(f"{'训练 IBS':<15} {results_no_dp['train_IBS'][-1]:<12.4f} {results_with_dp['train_IBS'][-1]:<12.4f} {train_ibs_diff:+.4f}")
-    print(f"{'测试 IBS':<15} {results_no_dp['test_IBS'][-1]:<12.4f} {results_with_dp['test_IBS'][-1]:<12.4f} {test_ibs_diff:+.4f}")
-    
-    print("\n实验完成！")
+    print(f"{'Training C-index':<15} {results_no_dp['train_Cindex'][-1]:<12.4f} {results_with_dp['train_Cindex'][-1]:<12.4f} {train_cindex_diff:+.4f}")
+    print(f"{'Test C-index':<15} {results_no_dp['test_Cindex'][-1]:<12.4f} {results_with_dp['test_Cindex'][-1]:<12.4f} {test_cindex_diff:+.4f}")
+    print(f"{'Training IBS':<15} {results_no_dp['train_IBS'][-1]:<12.4f} {results_with_dp['train_IBS'][-1]:<12.4f} {train_ibs_diff:+.4f}")
+    print(f"{'Test IBS':<15} {results_no_dp['test_IBS'][-1]:<12.4f} {results_with_dp['test_IBS'][-1]:<12.4f} {test_ibs_diff:+.4f}")
+
+    print("\nExperiment completed!")
 
 if __name__ == "__main__":
     main()

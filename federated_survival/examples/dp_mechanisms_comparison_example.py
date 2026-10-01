@@ -4,9 +4,9 @@ Legacy Perturbation Utilities Comparison (not an end-to-end DP guarantee)
 This example demonstrates legacy noise/selection utilities. The federated
 training path has no per-example clipping or multi-round accountant, so the
 epsilon/delta inputs must not be reported as a record-level DP guarantee:
-1. Gaussian Mechanism (高斯机制) - for (ε,δ)-differential privacy
-2. Laplace Mechanism (拉普拉斯机制) - for ε-differential privacy  
-3. Exponential Mechanism (指数机制) - for non-numeric outputs
+1. Gaussian Mechanism - for (ε,δ)-differential privacy
+2. Laplace Mechanism - for ε-differential privacy  
+3. Exponential Mechanism - for non-numeric outputs
 
 Author: Federated Survival Analysis Team
 Date: 2025-10-19
@@ -47,7 +47,7 @@ def demonstrate_noise_mechanisms():
     # Original data (simulating model parameters or query results)
     original_data = torch.randn(1000) * 10
     
-    print("\n1. Gaussian Mechanism (高斯机制)")
+    print("\n1. Gaussian Mechanism")
     print("-" * 80)
     print(f"Privacy guarantee: (ε={config.dp_epsilon}, δ={config.dp_delta})-DP")
     print(f"Noise distribution: Normal(0, σ²)")
@@ -58,7 +58,7 @@ def demonstrate_noise_mechanisms():
     gaussian_error = torch.mean(torch.abs(gaussian_noisy - original_data)).item()
     print(f"Mean absolute error: {gaussian_error:.4f}")
     
-    print("\n2. Laplace Mechanism (拉普拉斯机制)")
+    print("\n2. Laplace Mechanism")
     print("-" * 80)
     print(f"Privacy guarantee: ε={config.dp_epsilon}-DP")
     print(f"Noise distribution: Laplace(0, b), b = Δf/ε")
@@ -69,7 +69,7 @@ def demonstrate_noise_mechanisms():
     laplace_error = torch.mean(torch.abs(laplace_noisy - original_data)).item()
     print(f"Mean absolute error: {laplace_error:.4f}")
     
-    print("\n3. Exponential Mechanism (指数机制)")
+    print("\n3. Exponential Mechanism")
     print("-" * 80)
     print(f"Privacy guarantee: ε={config.dp_epsilon}-DP")
     print(f"Selection method: Probability sampling based on quality scores")
@@ -119,7 +119,7 @@ def visualize_noise_distributions(dp_tool: DifferentialPrivacy, data: torch.Tens
     # Gaussian distribution
     plt.subplot(1, 3, 1)
     plt.hist(gaussian_samples.numpy(), bins=50, density=True, alpha=0.7, color='blue', edgecolor='black')
-    plt.title('Gaussian Mechanism\n高斯机制', fontsize=12, fontweight='bold')
+    plt.title('Gaussian Mechanism', fontsize=12, fontweight='bold')
     plt.xlabel('Noise Value')
     plt.ylabel('Density')
     plt.grid(True, alpha=0.3)
@@ -127,7 +127,7 @@ def visualize_noise_distributions(dp_tool: DifferentialPrivacy, data: torch.Tens
     # Laplace distribution
     plt.subplot(1, 3, 2)
     plt.hist(laplace_samples.numpy(), bins=50, density=True, alpha=0.7, color='green', edgecolor='black')
-    plt.title('Laplace Mechanism\n拉普拉斯机制', fontsize=12, fontweight='bold')
+    plt.title('Laplace Mechanism', fontsize=12, fontweight='bold')
     plt.xlabel('Noise Value')
     plt.ylabel('Density')
     plt.grid(True, alpha=0.3)
@@ -148,7 +148,7 @@ def visualize_noise_distributions(dp_tool: DifferentialPrivacy, data: torch.Tens
     plt.bar(range(len(quality_scores)), selection_probs, alpha=0.7, color='orange', edgecolor='black')
     plt.plot(range(len(quality_scores)), quality_scores.numpy() / quality_scores.sum().item(), 
              'r--', linewidth=2, label='Quality Scores (normalized)')
-    plt.title('Exponential Mechanism\n指数机制', fontsize=12, fontweight='bold')
+    plt.title('Exponential Mechanism', fontsize=12, fontweight='bold')
     plt.xlabel('Candidate Index')
     plt.ylabel('Selection Probability')
     plt.legend()
@@ -193,7 +193,7 @@ def compare_privacy_utility(dp_tool: DifferentialPrivacy, data: torch.Tensor):
     
     plt.xlabel('Privacy Budget (ε)', fontsize=12, fontweight='bold')
     plt.ylabel('Mean Absolute Error', fontsize=12, fontweight='bold')
-    plt.title('Privacy-Utility Tradeoff\n隐私-效用权衡', fontsize=14, fontweight='bold')
+    plt.title('Privacy-Utility Tradeoff', fontsize=14, fontweight='bold')
     plt.legend(fontsize=11)
     plt.grid(True, alpha=0.3)
     plt.xscale('log')
@@ -244,7 +244,7 @@ def demonstrate_use_cases():
     
     dp_tool = DifferentialPrivacy(config)
     
-    print("\n1. Use Case: Counting Query (适用拉普拉斯机制)")
+    print("\n1. Use Case: Counting Query (Laplace mechanism)")
     print("-" * 80)
     true_count = 1000  # True number of patients
     count_tensor = torch.tensor([float(true_count)])
@@ -253,7 +253,7 @@ def demonstrate_use_cases():
     print(f"Noisy count: {int(noisy_count.item())}")
     print(f"Absolute error: {abs(noisy_count.item() - true_count):.2f}")
     
-    print("\n2. Use Case: Model Gradient Update (适用高斯机制)")
+    print("\n2. Use Case: Model Gradient Update (Gaussian mechanism)")
     print("-" * 80)
     gradient = torch.randn(100)
     print(f"Original gradient norm: {torch.norm(gradient).item():.4f}")
@@ -261,7 +261,7 @@ def demonstrate_use_cases():
     print(f"Noisy gradient norm: {torch.norm(noisy_gradient).item():.4f}")
     print(f"Noise magnitude: {torch.norm(noisy_gradient - gradient).item():.4f}")
     
-    print("\n3. Use Case: Best Model Selection (适用指数机制)")
+    print("\n3. Use Case: Best Model Selection (Exponential mechanism)")
     print("-" * 80)
     model_configs = torch.randn(5, 50)  # 5 candidate model configurations
     validation_scores = torch.tensor([0.82, 0.85, 0.88, 0.84, 0.86])  # Validation accuracy
@@ -288,9 +288,9 @@ if __name__ == "__main__":
     ┌─────────────────────┬──────────────────────┬─────────────────────────┐
     │ Mechanism           │ Privacy Guarantee    │ Best Use Case           │
     ├─────────────────────┼──────────────────────┼─────────────────────────┤
-    │ Gaussian (高斯)     │ (ε, δ)-DP           │ Deep Learning Gradients │
-    │ Laplace (拉普拉斯)  │ ε-DP                │ Counting/Sum Queries    │
-    │ Exponential (指数)  │ ε-DP                │ Non-numeric Selection   │
+    │ Gaussian             │ (ε, δ)-DP           │ Deep Learning Gradients │
+    │ Laplace              │ ε-DP                │ Counting/Sum Queries    │
+    │ Exponential          │ ε-DP                │ Non-numeric Selection   │
     └─────────────────────┴──────────────────────┴─────────────────────────┘
     
     Key Differences:

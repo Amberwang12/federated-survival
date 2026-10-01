@@ -1,21 +1,31 @@
 # -*- coding: UTF-8 -*-
 """
-示例 03：数据划分 (DataSplitter)
+Example 03: Data Partitioning (DataSplitter)
 
-演示 4 种联邦数据划分方式，并统计各客户端的样本量、删失率与生存时间分布：
-  - iid:          各客户端删失率一致(分层), 时间分布相近
-  - non-iid:      随机打乱后等分, 各维度均可能轻微偏移
-  - time-non-iid: 按生存时间排序后硬切分, 每个客户端只覆盖一个时间区间
-  - Dirichlet:    时间分箱+事件状态组成伪类别, 用 Dirichlet(alpha) 采样分配
-                  每个客户端覆盖全时间范围, 但各伪类别比例异质 (alpha 越小越 non-iid)
+Demonstrates 4 federated data partitioning schemes, with per-client statistics
+on sample size, censoring rate, and survival time distribution:
+  - iid:          clients have consistent censoring rates (stratified) and
+                  similar time distributions
+  - non-iid:      equal split after random shuffling; slight shifts in all
+                  dimensions are possible
+  - time-non-iid: hard split after sorting by survival time; each client
+                  covers only one time interval
+  - Dirichlet:    time binning + event status form pseudo-classes, allocated
+                  by Dirichlet(alpha) sampling; each client covers the full
+                  time range, but pseudo-class proportions are heterogeneous
+                  (smaller alpha = more non-iid)
 
-关键区别 (time-non-iid vs Dirichlet):
-  - time-non-iid: 时间维度硬切分, 客户端间时间均值单调递增, 不重叠
-  - Dirichlet:    时间+事件双重异质, 每个客户端时间范围较广, 但删失率/类别比例差异大
-  - 二者区别在时间分布与删失率异质程度, 不只看删失率均值
+Key differences (time-non-iid vs Dirichlet):
+  - time-non-iid: hard split on the time dimension; per-client time means
+                  increase monotonically and do not overlap
+  - Dirichlet:    joint heterogeneity in time + events; each client covers a
+                  wide time range, but censoring rates / class proportions
+                  differ substantially
+  - The difference lies in the time distribution and the degree of censoring
+    rate heterogeneity, not just the mean censoring rate
 
-方法路径: federated_survival.data.splitter.DataSplitter.split
-运行方式: python examples/03_data_partitioning.py
+Method path: federated_survival.data.splitter.DataSplitter.split
+Run: python examples/03_data_partitioning.py
 """
 import os
 import sys
@@ -25,7 +35,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 import numpy as np
 import matplotlib
 
-matplotlib.use("Agg")  # 非交互后端; 如需弹窗可注释本行
+matplotlib.use("Agg")  # Non-interactive backend; comment out to show windows
 import matplotlib.pyplot as plt
 
 from federated_survival.data.generator import DataGenerator, SimulationConfig
@@ -33,7 +43,7 @@ from federated_survival.data.splitter import DataSplitter
 
 
 def stat_clients(dataset, title):
-    """打印各客户端样本数、删失率、时间统计 (mean/median/range)"""
+    """Print per-client sample size, censoring rate, and time stats (mean/median/range)"""
     print("\n[{}]".format(title))
     print("  {:<10s} {:>5s} {:>8s} {:>10s} {:>10s} {:>16s}".format(
         "client", "n", "censor", "t_mean", "t_median", "t_range"))
@@ -47,17 +57,17 @@ def stat_clients(dataset, title):
         censors.append(censor)
         print("  {:<10s} {:>5d} {:>7.1%} {:>10.2f} {:>10.2f}  [{:.1f}, {:.1f}]".format(
             cid, n, censor, t.mean(), np.median(t), t.min(), t.max()))
-    # 异质性指标: 删失率标准差 (越大越 non-iid)
-    print("  -> 删失率标准差: {:.3f} (越大越 non-iid)".format(np.std(censors)))
+    # Heterogeneity metric: std of censoring rates (larger = more non-iid)
+    print("  -> Censoring rate std: {:.3f} (larger = more non-iid)".format(np.std(censors)))
     return times_list
 
 
 def main():
-    print("=== 示例 03: 数据划分 ===\n")
+    print("=== Example 03: Data Partitioning ===\n")
 
     gen = DataGenerator(SimulationConfig(n_samples=600, n_features=10, random_state=42))
     data = gen.generate("SDGM1", c_mean=0.4)
-    print("原始数据: {}, 总删失率={:.1%}, 时间范围=[{:.1f}, {:.1f}]\n".format(
+    print("Raw data: {}, overall censoring rate={:.1%}, time range=[{:.1f}, {:.1f}]\n".format(
         data.shape, 1 - data["status"].mean(), data["time"].min(), data["time"].max()))
 
     all_times = {}
@@ -65,14 +75,14 @@ def main():
         splitter = DataSplitter(
             n_clients=4,
             split_type=split_type,
-            alpha=0.3,        # Dirichlet 参数, 越小越 non-iid
+            alpha=0.3,        # Dirichlet parameter; smaller = more non-iid
             test_size=0.2,
             random_state=42,
         )
         dataset = splitter.split(data)
         all_times[split_type] = stat_clients(dataset, split_type)
 
-    # 可视化: 4 种划分下各客户端的时间分布箱线图
+    # Visualization: box plots of per-client time distributions under 4 split types
     fig, axes = plt.subplots(1, 4, figsize=(16, 4.5), sharey=True)
     colors = ["#4C72B0", "#DD8452", "#55A868", "#C44E52"]
     for ax, (split_type, times_list) in zip(axes, all_times.items()):
@@ -89,19 +99,26 @@ def main():
     plt.tight_layout()
     out_path = os.path.join(os.path.dirname(__file__), "03_partition_comparison.png")
     plt.savefig(out_path, dpi=120, bbox_inches="tight")
-    print("\n时间分布对比图已保存: {}".format(out_path))
+    print("\nTime distribution comparison plot saved: {}".format(out_path))
 
-    print("\n说明:")
-    print("  IID          - 各客户端删失率一致, 时间分布相近 (理想联邦场景)")
-    print("  Non-IID      - 随机划分, 各维度轻微偏移")
-    print("  Time-Non-IID - 按时间排序硬切分, 客户端间时间均值单调递增 (c0=短, c3=长)")
-    print("                 适合模拟时间分布漂移 (如不同医院收治不同病期患者)")
-    print("  Dirichlet    - 时间分箱+事件状态组成伪类别, Dirichlet(alpha) 采样")
-    print("                 每个客户端覆盖全时间范围, 但删失率/类别比例异质")
-    print("                 alpha 越小越 non-iid (alpha=0.3 时删失率标准差最大)")
-    print("\n  关键区别: time-non-iid 是时间硬切分, Dirichlet 是时间+事件双重 soft 异质.")
+    print("\nNotes:")
+    print("  IID          - Consistent censoring rates and similar time "
+          "distributions across clients (ideal federated setting)")
+    print("  Non-IID      - Random partitioning, slight shifts in all dimensions")
+    print("  Time-Non-IID - Hard split after sorting by time; per-client time "
+          "means increase monotonically (c0=short, c3=long)")
+    print("                 Suitable for simulating time distribution drift "
+          "(e.g. hospitals admitting different disease stages)")
+    print("  Dirichlet    - Time binning + event status form pseudo-classes, "
+          "sampled with Dirichlet(alpha)")
+    print("                 Each client covers the full time range, but "
+          "censoring rates / class proportions are heterogeneous")
+    print("                 Smaller alpha = more non-iid (censoring rate std is "
+          "largest at alpha=0.3)")
+    print("\n  Key difference: time-non-iid is a hard time split; Dirichlet is "
+          "joint soft heterogeneity in time + events.")
 
-    print("\n=== 示例 03 完成 ===")
+    print("\n=== Example 03 done ===")
 
 
 if __name__ == "__main__":

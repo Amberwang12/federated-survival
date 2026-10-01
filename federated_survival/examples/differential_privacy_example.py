@@ -1,11 +1,13 @@
 """
-历史客户端更新扰动示例（不提供端到端差分隐私保证）
+Example: Perturbation of Historical Client Updates (No End-to-End DP Guarantee)
 
-本示例仅展示三类遗留噪声/选择工具的调用方式。当前训练路径没有逐样本裁剪、
-隐私放大或跨轮 accountant，不能把 epsilon/delta 参数报告为 record-level DP 保证：
-1. Gaussian Mechanism (高斯机制) - 适用于深度学习梯度保护
-2. Laplace Mechanism (拉普拉斯机制) - 适用于计数查询
-3. Exponential Mechanism (指数机制) - 适用于模型选择
+This example only demonstrates how to invoke three legacy noise/selection tools.
+The current training path has no per-sample clipping, privacy amplification,
+or cross-round accountant, so the epsilon/delta parameters must NOT be
+reported as record-level DP guarantees:
+1. Gaussian Mechanism - for deep learning gradient protection
+2. Laplace Mechanism - for counting queries
+3. Exponential Mechanism - for model selection
 """
 from federated_survival.core.config import FSAConfig
 from federated_survival.core.runner import FSARunner
@@ -17,15 +19,15 @@ import numpy as np
 
 
 def generate_data(n_samples=1000, n_features=20, num_clients=5):
-    """生成联邦学习数据
-    
+    """Generate federated learning data.
+
     Args:
-        n_samples: 样本数
-        n_features: 特征数
-        num_clients: 客户端数量
-        
+        n_samples: Number of samples
+        n_features: Number of features
+        num_clients: Number of clients
+
     Returns:
-        分割后的联邦学习数据
+        Split federated learning data
     """
     sim_config = SimulationConfig(
         n_samples=n_samples,
@@ -45,18 +47,20 @@ def generate_data(n_samples=1000, n_features=20, num_clients=5):
 
 
 def demonstrate_gaussian_mechanism():
-    """演示高斯机制（Gaussian Mechanism）
-    
-    演示高斯噪声工具；当前联邦训练路径不据此提供 (ε, δ)-DP 保证。
-    适用于深度学习梯度保护，通过添加高斯噪声保护模型参数。
+    """Demonstrate the Gaussian Mechanism.
+
+    Demonstrates the Gaussian noise tool; the current federated training
+    path does not provide (epsilon, delta)-DP guarantees based on it.
+    Suitable for deep learning gradient protection by adding Gaussian
+    noise to model parameters.
     """
     print("\n" + "="*60)
-    print("1. 高斯机制 (Gaussian Mechanism)")
+    print("1. Gaussian Mechanism")
     print("="*60)
-    print("特点: (ε, δ)-差分隐私, 正态分布噪声")
-    print("适用: 深度学习梯度保护\n")
-    
-    # 创建配置
+    print("Properties: (epsilon, delta)-differential privacy, Gaussian noise")
+    print("Use case: Deep learning gradient protection\n")
+
+    # Create configuration
     config = FSAConfig(
         n_samples=1000,
         n_features=20,
@@ -64,54 +68,56 @@ def demonstrate_gaussian_mechanism():
         global_epochs=15,
         verbose=False,
         use_differential_privacy=True,
-        dp_mechanism='gaussian',      # 高斯机制
+        dp_mechanism='gaussian',      # Gaussian mechanism
         dp_epsilon=1.0,
-        dp_delta=1e-5,                # 高斯机制需要 delta
-        dp_noise_multiplier=1.0,      # 高斯噪声乘数
+        dp_delta=1e-5,                # Gaussian mechanism requires delta
+        dp_noise_multiplier=1.0,      # Gaussian noise multiplier
         dp_clip_norm=1.0,
     )
-    
-    # 生成数据
-    print("生成数据...")
+
+    # Generate data
+    print("Generating data...")
     data = generate_data(config.n_samples, config.n_features, config.num_clients)
-    
-    # 运行训练
-    print("开始训练...")
+
+    # Run training
+    print("Starting training...")
     runner = FSARunner(config)
     results = runner.run(data, type='raw')
-    
-    # 显示隐私信息
+
+    # Show privacy information
     privacy_info = runner.get_privacy_info()
-    print("\n隐私保护信息:")
-    print(f"  机制: {privacy_info['mechanism']}")
-    print(f"  隐私预算 (ε): {privacy_info['epsilon']}")
-    print(f"  失败概率 (δ): {privacy_info['delta']}")
-    print(f"  噪声乘数: {privacy_info['noise_multiplier']}")
-    print(f"  梯度裁剪范数: {privacy_info['clip_norm']}")
-    
-    # 显示结果
-    print("\n训练结果:")
-    print(f"  最终训练 C-index: {results['train_Cindex'][-1]:.4f}")
-    print(f"  最终测试 C-index: {results['test_Cindex'][-1]:.4f}")
-    print(f"  最终训练 IBS: {results['train_IBS'][-1]:.4f}")
-    print(f"  最终测试 IBS: {results['test_IBS'][-1]:.4f}")
+    print("\nPrivacy protection info:")
+    print(f"  Mechanism: {privacy_info['mechanism']}")
+    print(f"  Privacy budget (epsilon): {privacy_info['epsilon']}")
+    print(f"  Failure probability (delta): {privacy_info['delta']}")
+    print(f"  Noise multiplier: {privacy_info['noise_multiplier']}")
+    print(f"  Gradient clipping norm: {privacy_info['clip_norm']}")
+
+    # Show results
+    print("\nTraining results:")
+    print(f"  Final train C-index: {results['train_Cindex'][-1]:.4f}")
+    print(f"  Final test C-index: {results['test_Cindex'][-1]:.4f}")
+    print(f"  Final train IBS: {results['train_IBS'][-1]:.4f}")
+    print(f"  Final test IBS: {results['test_IBS'][-1]:.4f}")
     
     return results
 
 
 def demonstrate_laplace_mechanism():
-    """演示拉普拉斯机制（Laplace Mechanism）
-    
-    演示拉普拉斯噪声工具；当前联邦训练路径不据此提供纯 ε-DP 保证。
-    适用于计数查询和求和查询，噪声服从拉普拉斯分布。
+    """Demonstrate the Laplace Mechanism.
+
+    Demonstrates the Laplace noise tool; the current federated training
+    path does not provide pure epsilon-DP guarantees based on it.
+    Suitable for counting and sum queries; the noise follows a
+    Laplace distribution.
     """
     print("\n" + "="*60)
-    print("2. 拉普拉斯机制 (Laplace Mechanism)")
+    print("2. Laplace Mechanism")
     print("="*60)
-    print("特点: ε-差分隐私, 拉普拉斯分布噪声")
-    print("适用: 计数查询, 求和查询\n")
-    
-    # 创建配置
+    print("Properties: epsilon-differential privacy, Laplace-distributed noise")
+    print("Use case: Counting queries, sum queries\n")
+
+    # Create configuration
     config = FSAConfig(
         n_samples=1000,
         n_features=20,
@@ -119,144 +125,147 @@ def demonstrate_laplace_mechanism():
         global_epochs=15,
         verbose=False,
         use_differential_privacy=True,
-        dp_mechanism='laplace',       # 拉普拉斯机制
+        dp_mechanism='laplace',       # Laplace mechanism
         dp_epsilon=1.0,
-        # 注意: 拉普拉斯机制不需要 delta 和 noise_multiplier
+        # Note: the Laplace mechanism does not require delta or noise_multiplier
         dp_clip_norm=1.0,
     )
-    
-    # 生成数据
-    print("生成数据...")
+
+    # Generate data
+    print("Generating data...")
     data = generate_data(config.n_samples, config.n_features, config.num_clients)
-    
-    # 运行训练
-    print("开始训练...")
+
+    # Run training
+    print("Starting training...")
     runner = FSARunner(config)
     results = runner.run(data, type='raw')
-    
-    # 显示隐私信息
+
+    # Show privacy information
     privacy_info = runner.get_privacy_info()
-    print("\n隐私保护信息:")
-    print(f"  机制: {privacy_info['mechanism']}")
-    print(f"  隐私预算 (ε): {privacy_info['epsilon']}")
-    print(f"  梯度裁剪范数: {privacy_info['clip_norm']}")
-    print(f"  注意: 拉普拉斯机制提供纯 ε-DP，无需 delta 参数")
-    
-    # 显示结果
-    print("\n训练结果:")
-    print(f"  最终训练 C-index: {results['train_Cindex'][-1]:.4f}")
-    print(f"  最终测试 C-index: {results['test_Cindex'][-1]:.4f}")
-    print(f"  最终训练 IBS: {results['train_IBS'][-1]:.4f}")
-    print(f"  最终测试 IBS: {results['test_IBS'][-1]:.4f}")
+    print("\nPrivacy protection info:")
+    print(f"  Mechanism: {privacy_info['mechanism']}")
+    print(f"  Privacy budget (epsilon): {privacy_info['epsilon']}")
+    print(f"  Gradient clipping norm: {privacy_info['clip_norm']}")
+    print(f"  Note: the Laplace mechanism provides pure epsilon-DP; no delta parameter is needed")
+
+    # Show results
+    print("\nTraining results:")
+    print(f"  Final train C-index: {results['train_Cindex'][-1]:.4f}")
+    print(f"  Final test C-index: {results['test_Cindex'][-1]:.4f}")
+    print(f"  Final train IBS: {results['train_IBS'][-1]:.4f}")
+    print(f"  Final test IBS: {results['test_IBS'][-1]:.4f}")
     
     return results
 
 
 def demonstrate_exponential_mechanism():
-    """演示指数机制（Exponential Mechanism）
-    
-    演示离散候选选择；只有另行证明质量函数敏感度时才可讨论其 DP 保证。
-    常用于模型选择、超参数选择等离散优化问题。
+    """Demonstrate the Exponential Mechanism.
+
+    Demonstrates discrete candidate selection; its DP guarantees can only
+    be claimed if the sensitivity of the quality function is proven separately.
+    Commonly used for discrete optimization problems such as model selection
+    and hyperparameter selection.
     """
     print("\n" + "="*60)
-    print("3. 指数机制 (Exponential Mechanism)")
+    print("3. Exponential Mechanism")
     print("="*60)
-    print("特点: ε-差分隐私, 概率采样")
-    print("适用: 模型选择, 超参数选择, 离散优化\n")
-    
-    # 创建配置用于初始化差分隐私工具
+    print("Properties: epsilon-differential privacy, probabilistic sampling")
+    print("Use case: Model selection, hyperparameter selection, discrete optimization\n")
+
+    # Create configuration for initializing the differential privacy tool
     config = FSAConfig(
         use_differential_privacy=True,
         dp_mechanism='exponential',
         dp_epsilon=2.0,
         dp_sensitivity=1.0,
     )
-    
-    # 创建差分隐私工具
+
+    # Create the differential privacy tool
     dp_tool = DifferentialPrivacy(config)
-    
-    # 定义候选模型名称和质量得分
+
+    # Define candidate model names and quality scores
     model_names = ['Model_A', 'Model_B', 'Model_C', 'Model_D', 'Model_E']
-    quality_scores = torch.tensor([0.75, 0.82, 0.68, 0.79, 0.85])  # 模型质量得分
-    
-    # 创建候选项张量（这里使用简单的索引张量）
+    quality_scores = torch.tensor([0.75, 0.82, 0.68, 0.79, 0.85])  # Model quality scores
+
+    # Create candidate tensor (a simple index tensor is used here)
     candidates = torch.arange(len(model_names))
-    
-    print("候选模型和质量得分:")
+
+    print("Candidate models and quality scores:")
     for i, (model, score) in enumerate(zip(model_names, quality_scores)):
         print(f"  {model}: {score:.4f}")
     print()
-    
-    # 使用指数机制选择模型（多次采样以观察概率分布）
-    print("使用指数机制选择模型 (100次采样)...")
+
+    # Select a model via the exponential mechanism (sample repeatedly to observe the probability distribution)
+    print("Selecting a model via the exponential mechanism (100 samples)...")
     n_trials = 100
     selection_counts = {model: 0 for model in model_names}
-    
+
     for _ in range(n_trials):
         selected_idx = dp_tool.exponential_mechanism(
             candidates=candidates,
             quality_scores=quality_scores
         )
         selection_counts[model_names[selected_idx]] += 1
-    
-    # 显示选择统计
-    print("\n选择统计 (基于隐私预算 ε=2.0):")
+
+    # Show selection statistics
+    print("\nSelection statistics (based on privacy budget epsilon=2.0):")
     for model in model_names:
         percentage = (selection_counts[model] / n_trials) * 100
         bar = '█' * int(percentage / 2)
-        print(f"  {model}: {selection_counts[model]:3d} 次 ({percentage:5.1f}%) {bar}")
-    
-    # 理论分析
-    print("\n理论分析:")
-    print("  指数机制选择概率与质量得分成指数关系")
-    print(f"  最高得分模型 (Model_E: {quality_scores[4]:.4f}) 被选中概率最高")
-    print(f"  实际选中次数: {selection_counts['Model_E']} 次")
-    print("  说明: 当前示例未建立端到端隐私保证")
+        print(f"  {model}: {selection_counts[model]:3d} times ({percentage:5.1f}%) {bar}")
+
+    # Theoretical analysis
+    print("\nTheoretical analysis:")
+    print("  The exponential mechanism's selection probability grows exponentially with the quality score")
+    print(f"  The highest-scoring model (Model_E: {quality_scores[4]:.4f}) has the highest selection probability")
+    print(f"  Actual selection count: {selection_counts['Model_E']} times")
+    print("  Note: this example does not establish an end-to-end privacy guarantee")
     
     return selection_counts
 
 
 def main():
-    """主函数：演示三种差分隐私机制"""
+    """Main function: demonstrate three differential privacy mechanisms."""
     print("\n" + "#"*60)
-    print("# 差分隐私联邦学习生存分析 - 三种机制演示")
+    print("# Differential Privacy in Federated Learning for Survival Analysis - Three Mechanisms Demo")
     print("#"*60)
-    print("\n本示例演示三种差分隐私机制在联邦学习中的应用:")
-    print("  1. Gaussian Mechanism (高斯机制)")
-    print("  2. Laplace Mechanism (拉普拉斯机制)")
-    print("  3. Exponential Mechanism (指数机制)")
-    print("\n这些工具有不同实验用途，但当前训练流程没有端到端隐私会计。")
-    
-    # 演示三种机制
+    print("\nThis example demonstrates three differential privacy mechanisms in federated learning:")
+    print("  1. Gaussian Mechanism")
+    print("  2. Laplace Mechanism")
+    print("  3. Exponential Mechanism")
+    print("\nThese tools serve different experimental purposes, but the current training")
+    print("pipeline has no end-to-end privacy accounting.")
+
+    # Demonstrate the three mechanisms
     results_gaussian = demonstrate_gaussian_mechanism()
     results_laplace = demonstrate_laplace_mechanism()
     selection_counts = demonstrate_exponential_mechanism()
-    
-    # 总结对比
+
+    # Summary comparison
     print("\n" + "="*60)
-    print("总结对比")
+    print("Summary Comparison")
     print("="*60)
-    print("\n机制特性对比:")
+    print("\nMechanism properties comparison:")
     print("+" + "-"*18 + "+" + "-"*18 + "+" + "-"*20 + "+")
-    print("| {:^16} | {:^16} | {:^18} |".format("工具", "当前软件保证", "实验用途"))
+    print("| {:^16} | {:^16} | {:^18} |".format("Tool", "Guarantee here", "Experimental use"))
     print("+" + "-"*18 + "+" + "-"*18 + "+" + "-"*20 + "+")
-    print("| {:^16} | {:^16} | {:^18} |".format("Gaussian", "(ε, δ)-DP", "深度学习梯度"))
-    print("| {:^16} | {:^16} | {:^18} |".format("Laplace", "ε-DP", "计数/求和查询"))
-    print("| {:^16} | {:^16} | {:^18} |".format("Exponential", "ε-DP", "模型选择"))
+    print("| {:^16} | {:^16} | {:^18} |".format("Gaussian", "(epsilon, delta)-DP", "DL gradients"))
+    print("| {:^16} | {:^16} | {:^18} |".format("Laplace", "epsilon-DP", "Count/sum queries"))
+    print("| {:^16} | {:^16} | {:^18} |".format("Exponential", "epsilon-DP", "Model selection"))
     print("+" + "-"*18 + "+" + "-"*18 + "+" + "-"*20 + "+")
-    
-    print("\n性能对比 (基于本次运行):")
-    print(f"  高斯机制 - 测试 C-index: {results_gaussian['test_Cindex'][-1]:.4f}")
-    print(f"  拉普拉斯机制 - 测试 C-index: {results_laplace['test_Cindex'][-1]:.4f}")
-    print(f"  指数机制 - 模型选择: {selection_counts['Model_E']} 次")
-    
-    print("\n使用建议:")
-    print("  • 深度学习模型训练 → 选择 Gaussian Mechanism")
-    print("  • 简单统计查询 → 选择 Laplace Mechanism")
-    print("  • 模型或参数选择 → 选择 Exponential Mechanism")
-    
+
+    print("\nPerformance comparison (based on this run):")
+    print(f"  Gaussian mechanism - test C-index: {results_gaussian['test_Cindex'][-1]:.4f}")
+    print(f"  Laplace mechanism - test C-index: {results_laplace['test_Cindex'][-1]:.4f}")
+    print(f"  Exponential mechanism - model selection: {selection_counts['Model_E']} times")
+
+    print("\nUsage recommendations:")
+    print("  • Deep learning model training → choose the Gaussian Mechanism")
+    print("  • Simple statistical queries → choose the Laplace Mechanism")
+    print("  • Model or parameter selection → choose the Exponential Mechanism")
+
     print("\n" + "#"*60)
-    print("示例运行完成！")
+    print("Example run completed!")
     print("#"*60 + "\n")
 
 

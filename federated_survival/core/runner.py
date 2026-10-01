@@ -1,5 +1,5 @@
 """
-联邦学习分析运行器
+Federated survival analysis runner.
 """
 
 import random
@@ -25,14 +25,14 @@ from tqdm import tqdm
 
 
 class FSARunner:
-    """联邦学习分析运行器"""
+    """Runner for federated survival analysis."""
 
     def __init__(self, config: FSAConfig):
         """
-        初始化联邦学习分析运行器
+        Initialize the federated survival analysis runner.
 
         Args:
-            config: 联邦学习配置
+            config: Federated learning configuration.
         """
         self.config = config
         self.adapter = get_model_adapter(config.model_type)
@@ -41,7 +41,7 @@ class FSARunner:
         self.set_random_seed()
 
     def set_random_seed(self):
-        """设置随机种子"""
+        """Set the random seed."""
         if self.config.random_seed is not None:
             random.seed(self.config.random_seed)
             np.random.seed(self.config.random_seed)
@@ -50,12 +50,12 @@ class FSARunner:
                 torch.cuda.manual_seed(self.config.random_seed)
 
     def _get_label_transform(self):
-        """获取标签转换器"""
+        """Get the label transformer."""
         self.adapter = get_model_adapter(self.config.model_type)
         return self.adapter.create_label_transform(self.config)
 
     def _get_model(self, net: nn.Module, labtrans=None):
-        """获取生存分析模型"""
+        """Get the survival analysis model."""
         self.adapter = get_model_adapter(self.config.model_type)
         return self.adapter.build_model(
             net,
@@ -68,23 +68,24 @@ class FSARunner:
         self, data: Any, type: str = "raw", aug_method: str = "MVAEC"
     ) -> Dict[str, List[float]]:
         """
-        运行联邦学习分析
+        Run federated survival analysis.
 
         Args:
-            data: 生存数据，需要包含以下属性：
-                - clients_set: 客户端数据集，格式为{client_id: (train_X, train_y)}
-                - raw_aug_clients_set: 原始数据增强后的客户端数据集，格式为{client_id: (train_X, train_y)}
-                - test_data: 测试数据
-                - test_label: 测试标签
-            type: 数据类型，'raw'或'raw_aug'
-            aug_method: 数据增强方法，'MVAEC'或'MVAES'
+            data: Survival data with the following attributes:
+                - clients_set: Client datasets in the form {client_id: (train_X, train_y)}
+                - raw_aug_clients_set: Client datasets augmented from raw data,
+                  in the form {client_id: (train_X, train_y)}
+                - test_data: Test data
+                - test_label: Test labels
+            type: Data type, 'raw' or 'raw_aug'
+            aug_method: Data augmentation method, 'MVAEC' or 'MVAES'
 
         Returns:
             dict: {'train_Cindex': train_Cindex, 'train_IBS': train_IBS, 'test_Cindex': test_Cindex, 'test_IBS': test_IBS}
         """
         self.adapter = get_model_adapter(self.config.model_type)
 
-        # 获取训练数据
+        # Get training data
         if type == "raw":
             clients_set = data.clients_set
         elif type == "raw_aug":
@@ -120,10 +121,10 @@ class FSARunner:
         # Let the registered model adapter own label fitting and output shape.
         labtrans = self.adapter.configure_targets(self.config, *y_train)
 
-        # 获取测试数据
+        # Get test data
         durations_test, events_test = self._get_target(data.test_label)
 
-        # 初始化服务器和客户端
+        # Initialize server and clients
         server = Server(self.config)
         self.protocol.begin_run(self.config, server.global_model.state_dict())
         clients = []
@@ -138,29 +139,29 @@ class FSARunner:
                 )
             )
 
-        # 如果启用差分隐私，输出隐私保护信息
+        # If differential privacy is enabled, print privacy protection info
         if self.config.use_differential_privacy:
             if self.config.verbose:
                 mechanism = (
                     self.config.dp_mechanism if hasattr(self.config, "dp_mechanism") else "gaussian"
                 )
-                print(f"差分隐私保护已启用:")
-                print(f"  - 机制类型: {mechanism.upper()}")
-                print(f"  - 隐私预算 (ε): {self.config.dp_epsilon}")
+                print("Differential privacy enabled:")
+                print(f"  - mechanism: {mechanism.upper()}")
+                print(f"  - privacy budget (epsilon): {self.config.dp_epsilon}")
                 if mechanism == "gaussian":
-                    print(f"  - 失败概率 (δ): {self.config.dp_delta}")
-                    print(f"  - 噪声乘数: {self.config.dp_noise_multiplier}")
-                print(f"  - 敏感度: {self.config.dp_sensitivity}")
+                    print(f"  - failure probability (delta): {self.config.dp_delta}")
+                    print(f"  - noise multiplier: {self.config.dp_noise_multiplier}")
+                print(f"  - sensitivity: {self.config.dp_sensitivity}")
                 if mechanism in ["gaussian", "laplace"]:
-                    print(f"  - 梯度裁剪范数: {self.config.dp_clip_norm}")
+                    print(f"  - gradient clipping norm: {self.config.dp_clip_norm}")
 
-        # 记录指标
+        # Record metrics
         train_Cindex = []
         train_IBS = []
         test_Cindex = []
         test_IBS = []
 
-        # 联邦学习训练
+        # Federated learning training
         train_loss = []
         update_direction_norm = []
         client_drift = []
@@ -176,12 +177,12 @@ class FSARunner:
             range(self.config.global_epochs),
             disable=not self.config.show_progress,
         ):
-            # 选择客户端
+            # Select clients
             candidates = random.sample(
                 clients, max(round(self.config.client_sample_ratio * len(clients)), 1)
             )
 
-            # 计算总样本数
+            # Compute the total number of samples
             N = sum(c.N for c in candidates)
             round_directions = []
             round_weights = []
@@ -193,7 +194,7 @@ class FSARunner:
                 for name, value in server.global_model.state_dict().items()
             }
 
-            # 客户端训练
+            # Client training
             for i, c in enumerate(candidates, 1):
                 if self.config.verbose:
                     print(f"Epoch {e+1}/{self.config.global_epochs}, Client {i}/{len(candidates)}")
@@ -207,7 +208,7 @@ class FSARunner:
                     {name: value.detach().clone() for name, value in local.state_dict().items()}
                 )
 
-            # 服务器更新
+            # Server update
             aggregated_state = self.protocol.aggregate(
                 global_state,
                 round_states,
@@ -231,12 +232,12 @@ class FSARunner:
                 self.protocol.round_communication_bytes(len(candidates), model_bytes)
             )
 
-            # 评估模型
+            # Evaluate the model
             index = server.model_eval(clients_set, labtrans)
             train_Cindex.append(index[0])
             train_IBS.append(index[1])
 
-            # 计算测试指标
+            # Compute test metrics
             model = self._get_model(server.global_model, labtrans)
 
             pooled_x = np.concatenate(
@@ -261,7 +262,7 @@ class FSARunner:
             test_IBS.append(ev.integrated_brier_score(time_grid))
 
             if self.config.early_stopping:
-                # 提前停止
+                # Early stopping
                 patience = self.config.early_stopping_patience
                 if (
                     len(train_Cindex) > patience
@@ -442,10 +443,10 @@ class FSARunner:
 
     def get_privacy_info(self) -> Dict[str, Any]:
         """
-        获取差分隐私保护信息
+        Get differential privacy protection information.
 
         Returns:
-            dict: 隐私保护相关信息
+            dict: Privacy protection related information.
         """
         if not self.config.use_differential_privacy:
             return {"privacy_protection": False}
@@ -454,7 +455,7 @@ class FSARunner:
 
         dp_tool = DifferentialPrivacy(self.config)
 
-        # 计算隐私预算消耗
+        # Compute privacy budget consumption
         total_epsilon, per_round_epsilon = dp_tool.compute_privacy_budget(
             self.config.global_epochs, self.config.num_clients
         )
@@ -472,7 +473,7 @@ class FSARunner:
             "privacy_scope": "experimental clipped client-update perturbation",
         }
 
-        # 添加高斯机制特定参数
+        # Add Gaussian mechanism specific parameters
         if mechanism == "gaussian":
             privacy_info.update(
                 {
@@ -489,14 +490,14 @@ class FSARunner:
                 }
             )
 
-        # 添加梯度裁剪参数（高斯和拉普拉斯机制）
+        # Add gradient clipping parameters (Gaussian and Laplace mechanisms)
         if mechanism in ["gaussian", "laplace"]:
             privacy_info["clip_norm"] = self.config.dp_clip_norm
 
         return privacy_info
 
     def _get_target(self, df):
-        """获取目标变量"""
+        """Get the target variables."""
         return df[:, 0], df[:, 1]
 
     def plot_results(
@@ -506,31 +507,31 @@ class FSARunner:
         show: bool = True,
     ) -> Figure:
         """
-        绘制训练结果
+        Plot training results.
 
         Args:
-            results: 训练结果，格式为：
+            results: Training results in the form:
                 {
-                    'train_Cindex': List[float],  # 训练集的C-index
-                    'train_IBS': List[float],     # 训练集的IBS
-                    'test_Cindex': List[float],   # 测试集的C-index
-                    'test_IBS': List[float]       # 测试集的IBS
+                    'train_Cindex': List[float],  # Training set C-index
+                    'train_IBS': List[float],     # Training set IBS
+                    'test_Cindex': List[float],   # Test set C-index
+                    'test_IBS': List[float]       # Test set IBS
                 }
-            output_path: 可选图片保存路径
-            show: 是否打开交互式窗口；自动化测试应设为 False
+            output_path: Optional path to save the figure.
+            show: Whether to open an interactive window; set to False for automated tests.
 
         Returns:
-            matplotlib.figure.Figure: 生成的图对象
+            matplotlib.figure.Figure: The generated figure object.
         """
-        # 使用更现代的样式，避免已弃用的seaborn样式
+        # Use a more modern style and avoid the deprecated seaborn style
         try:
-            # 尝试使用seaborn-v0_8样式（matplotlib 3.6+）
+            # Try the seaborn-v0_8 style (matplotlib 3.6+)
             plt.style.use("seaborn-v0_8")
         except OSError:
-            # 如果不可用，使用默认样式并手动设置参数
+            # Fall back to the default style and set parameters manually
             plt.style.use("default")
 
-        # 设置字体和样式
+        # Set fonts and style
         plt.rcParams.update(
             {
                 "font.size": 12,
@@ -544,23 +545,23 @@ class FSARunner:
             }
         )
 
-        # 关闭所有已存在的图形窗口，避免出现多个窗口
+        # Close all existing figure windows to avoid multiple windows
         plt.close("all")
 
-        # 创建子图
+        # Create subplots
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
 
-        # 获取epoch数并转换为列表
+        # Get the number of epochs and convert to a list
         n_epochs = len(results["train_Cindex"])
         epochs = list(range(1, n_epochs + 1))
 
-        # 设置C-index的坐标轴范围
+        # Set the C-index axis range
         ax1.set_xlim(1, n_epochs)
         cindex_min = min(min(results["train_Cindex"]), min(results["test_Cindex"]))
         cindex_max = max(max(results["train_Cindex"]), max(results["test_Cindex"]))
         ax1.set_ylim(cindex_min - 0.05, cindex_max + 0.05)
 
-        # 绘制C-index
+        # Plot the C-index
         ax1.plot(
             epochs,
             results["train_Cindex"],
@@ -589,7 +590,7 @@ class FSARunner:
         ax1.grid(True, linestyle="--", alpha=0.7)
         ax1.legend(loc="lower right", frameon=True, fancybox=True, shadow=True)
 
-        # 添加最终值标注
+        # Add final value annotations
         final_train_cindex = results["train_Cindex"][-1]
         final_test_cindex = results["test_Cindex"][-1]
         ax1.text(
@@ -600,13 +601,13 @@ class FSARunner:
             bbox=dict(facecolor="white", alpha=0.8, edgecolor="none"),
         )
 
-        # 设置IBS的坐标轴范围
+        # Set the IBS axis range
         ax2.set_xlim(1, n_epochs)
         ibs_min = min(min(results["train_IBS"]), min(results["test_IBS"]))
         ibs_max = max(max(results["train_IBS"]), max(results["test_IBS"]))
         ax2.set_ylim(max(0, ibs_min - 0.05), min(1.0, ibs_max + 0.05))
 
-        # 绘制IBS
+        # Plot the IBS
         ax2.plot(
             epochs,
             results["train_IBS"],
@@ -635,7 +636,7 @@ class FSARunner:
         ax2.grid(True, linestyle="--", alpha=0.7)
         ax2.legend(loc="upper right", frameon=True, fancybox=True, shadow=True)
 
-        # 添加最终值标注
+        # Add final value annotations
         final_train_ibs = results["train_IBS"][-1]
         final_test_ibs = results["test_IBS"][-1]
         ax2.text(
@@ -647,7 +648,7 @@ class FSARunner:
             bbox=dict(facecolor="white", alpha=0.8, edgecolor="none"),
         )
 
-        # 调整布局
+        # Adjust layout
         plt.tight_layout()
 
         if output_path is not None:

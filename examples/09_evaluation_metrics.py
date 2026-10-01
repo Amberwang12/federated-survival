@@ -1,15 +1,15 @@
 # -*- coding: UTF-8 -*-
 """
-示例 09：评估指标 (C-index / IBS)
+Example 09: Evaluation metrics (C-index / IBS)
 
-演示生存分析的两个核心评估指标:
-  - C-index (一致性指数): 手动调用 calculate_cindex 计算
-  - IBS (集成 Brier 分数): 由 FSARunner 内部基于 pycox.EvalSurv 计算
+Demonstrates the two core evaluation metrics for survival analysis:
+  - C-index (concordance index): computed manually via calculate_cindex
+  - IBS (integrated Brier score): computed inside FSARunner based on pycox.EvalSurv
 
-方法路径:
+Method path:
   federated_survival.utils.metrics.calculate_cindex
-  FSARunner.run 返回的 train/test_Cindex 与 train/test_IBS
-运行方式: python examples/09_evaluation_metrics.py
+  train/test_Cindex and train/test_IBS returned by FSARunner.run
+Usage: python examples/09_evaluation_metrics.py
 """
 import os
 import sys
@@ -25,23 +25,23 @@ from federated_survival.core.runner import FSARunner
 
 
 def main():
-    print("=== 示例 09: 评估指标 ===\n")
+    print("=== Example 09: Evaluation Metrics ===\n")
 
-    # 1) 手动计算 C-index
-    print("1) 手动计算 C-index (calculate_cindex)")
+    # 1) Compute C-index manually
+    print("1) Compute C-index manually (calculate_cindex)")
     time = np.array([5.0, 8.0, 12.0, 20.0, 15.0, 10.0])
     event = np.array([1, 1, 0, 1, 1, 0])
     risk_score = np.array([2.1, 1.8, 0.5, 3.0, 2.5, 0.2])
     cindex = calculate_cindex(time, event, risk_score)
-    print("   生存时间: {}".format(time.tolist()))
-    print("   事件指示: {}".format(event.tolist()))
-    print("   风险得分: {}".format(risk_score.tolist()))
-    print("   C-index = {:.4f}  (1.0=完美, 0.5=随机)".format(cindex))
-    print("   说明: 风险得分越高 -> 预期生存时间越短,")
-    print("         calculate_cindex 内部对风险取负号以匹配 concordance_index\n")
+    print("   survival times: {}".format(time.tolist()))
+    print("   event indicators: {}".format(event.tolist()))
+    print("   risk scores: {}".format(risk_score.tolist()))
+    print("   C-index = {:.4f}  (1.0=perfect, 0.5=random)".format(cindex))
+    print("   Note: higher risk score -> shorter expected survival time,")
+    print("         calculate_cindex negates the risk internally to match concordance_index\n")
 
-    # 2) 联邦训练后的评估指标曲线
-    print("2) 联邦训练后的 C-index / IBS (由 FSARunner 内部计算)")
+    # 2) Evaluation metric curves after federated training
+    print("2) C-index / IBS after federated training (computed inside FSARunner)")
     gen = DataGenerator(SimulationConfig(n_samples=300, n_features=10, random_state=42))
     data = gen.generate("weibull", c_mean=0.4)
     dataset = DataSplitter(
@@ -57,21 +57,21 @@ def main():
     runner = FSARunner(config)
     res = runner.run(dataset, type="raw")
 
-    print("   训练集 C-index 曲线: {}".format(
+    print("   train C-index curve: {}".format(
         [round(x, 4) for x in res["train_Cindex"]]))
-    print("   测试集 C-index 曲线: {}".format(
+    print("   test C-index curve:  {}".format(
         [round(x, 4) for x in res["test_Cindex"]]))
-    print("   训练集 IBS 曲线:     {}".format(
+    print("   train IBS curve:     {}".format(
         [round(x, 4) for x in res["train_IBS"]]))
-    print("   测试集 IBS 曲线:     {}".format(
+    print("   test IBS curve:      {}".format(
         [round(x, 4) for x in res["test_IBS"]]))
 
-    print("\n指标解读:")
-    print("  C-index - 越高越好 (0.5~1.0), 衡量模型对生存时间排序的能力")
-    print("  IBS     - 越低越好 (0~0.25), 衡量生存概率预测的准确性")
-    print("  训练曲线可观察收敛趋势, 测试曲线反映泛化能力")
+    print("\nMetric interpretation:")
+    print("  C-index - higher is better (0.5~1.0), measures the model's ability to rank survival times")
+    print("  IBS     - lower is better (0~0.25), measures the accuracy of survival probability predictions")
+    print("  Training curves show the convergence trend; test curves reflect generalization")
 
-    print("\n=== 示例 09 完成 ===")
+    print("\n=== Example 09 Done ===")
 
 
 if __name__ == "__main__":

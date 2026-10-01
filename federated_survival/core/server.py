@@ -1,5 +1,5 @@
 """
-服务器类
+Server class
 """
 import torch
 import torch.nn as nn
@@ -11,49 +11,52 @@ from ..utils.metrics import evaluation_time_grid
 from ..models import get_model_adapter
 
 class Server:
-    """服务器类"""
+    """Server class."""
     
     def __init__(self, config):
         """
-        初始化服务器
-        
+        Initialize the server.
+
         Args:
-            config: 联邦学习配置
+            config: Federated learning configuration.
         """
         self.config = config
         self.adapter = get_model_adapter(config.model_type)
         self.global_model = self._create_model()
         
-        # 初始化差分隐私工具
+        # Initialize the differential privacy tool
         if self.config.use_differential_privacy:
             self.dp_tool = DifferentialPrivacy(config)
         else:
             self.dp_tool = None
         
     def _create_model(self) -> nn.Module:
-        """创建全局模型"""
+        """Create the global model."""
         return self.adapter.build_network(self.config)
         
     def model_update(self, weight_accumulator: Dict[str, torch.Tensor], num_clients: int = 1):
         """
-        更新全局模型
-        
+        Update the global model.
+
         Args:
-            weight_accumulator: 权重累加器
-            num_clients: 参与聚合的客户端数量
+            weight_accumulator: The weight accumulator.
+            num_clients: Number of clients participating in the aggregation.
         """
-        # 注意:差分隐私噪声在客户端本地训练时已添加,此处不再添加噪声
-        # FedAvg算法: 直接用加权平均后的参数替换全局模型参数
+        # Note: differential privacy noise is already added during local client
+        # training; no additional noise is applied here.
+        # FedAvg: replace the global model parameters with the weighted average directly.
         for name, data in self.global_model.state_dict().items():
             data.copy_(weight_accumulator[name].to(dtype=data.dtype, device=data.device))
             
     def model_eval(self, client_set, labtrans) -> tuple:
         """
-        评估模型
-        计算每个客户端的C-index和IBS, 返回平均值
+        Evaluate the model.
+        Compute the C-index and IBS for each client and return their averages.
+
         Args:
-            client_set: 客户端数据
-            labtrans: 标签转换器
+            client_set: Client data.
+            labtrans: Label transformer.
+
         Returns:
             tuple: (C-index, IBS)
         """
@@ -76,7 +79,7 @@ class Server:
         return float(ev.concordance_td()), float(ev.integrated_brier_score(time_grid))
         
     def _get_model(self, net: nn.Module, labtrans=None):
-        """获取生存分析模型"""
+        """Build the survival analysis model."""
         return self.adapter.build_model(
             net,
             self.config,
@@ -85,5 +88,5 @@ class Server:
         )
         
     def _get_target(self, df):
-        """获取目标变量"""
+        """Extract the target variables."""
         return df[:, 0], df[:, 1] 

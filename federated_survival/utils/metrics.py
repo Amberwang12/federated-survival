@@ -6,15 +6,15 @@ def calculate_cindex(time: np.ndarray,
                     event: np.ndarray,
                     risk_score: np.ndarray) -> float:
     """
-    计算C-index
-    
+    Calculate the C-index
+
     Args:
-        time: 生存时间
-        event: 事件指示器
-        risk_score: 风险得分
-        
+        time: Survival times
+        event: Event indicators
+        risk_score: Risk scores
+
     Returns:
-        float: C-index值
+        float: C-index value
     """
     return concordance_index(time, -risk_score, event)
 
@@ -23,16 +23,16 @@ def calculate_ibs(time_grid: np.ndarray,
                  time: np.ndarray,
                  event: np.ndarray) -> float:
     """
-    计算综合Brier分数 (IBS)
-    
+    Calculate the Integrated Brier Score (IBS)
+
     Args:
-        time_grid: 时间点网格
-        survival_curves: 生存曲线预测值
-        time: 实际生存时间
-        event: 事件指示器
-        
+        time_grid: Grid of time points
+        survival_curves: Predicted survival curves
+        time: Actual survival times
+        event: Event indicators
+
     Returns:
-        float: IBS值
+        float: IBS value
     """
     grid = np.asarray(time_grid, dtype=float)
     durations = np.asarray(time, dtype=float).reshape(-1)

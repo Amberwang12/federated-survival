@@ -1,19 +1,19 @@
 # -*- coding: UTF-8 -*-
 """
-示例 10：复现论文 proof 配置
+Example 10: Reproduce the paper's proof configuration
 
-论文配置:
-  仿真: SDGM1, n=100
-  联邦: 3 clients, Dirichlet alpha=0.8
-  模型: DeepSurv (num_nodes=(32,32))
-  训练: 5 global rounds, 20 local epochs, batch_size=32
-  隐私: Gaussian DP, epsilon=1
+Paper configuration:
+  Simulation: SDGM1, n=100
+  Federated: 3 clients, Dirichlet alpha=0.8
+  Model: DeepSurv (num_nodes=(32,32))
+  Training: 5 global rounds, 20 local epochs, batch_size=32
+  Privacy: Gaussian DP, epsilon=1
 
-为体现差分隐私的影响, 同时跑一组 "无 DP" 对照。
+To show the impact of differential privacy, a "no DP" baseline is also run.
 
-方法路径: federated_survival.core.runner.FSARunner
+Method path: federated_survival.core.runner.FSARunner
           federated_survival.core.differential_privacy.DifferentialPrivacy
-运行方式: python examples/10_reproduce_paper.py
+Usage: python examples/10_reproduce_paper.py
 """
 import os
 import sys
@@ -21,13 +21,13 @@ import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import warnings
-# pycox 在模型输出溢出时会打 RuntimeWarning, 此处已知是小样本+强DP导致, 抑制以保持输出整洁
+# pycox raises RuntimeWarning on model output overflow; known to be caused by small samples + strong DP here, suppressed to keep output clean
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 import numpy as np
 import matplotlib
 
-matplotlib.use("Agg")  # 非交互后端; 如需弹窗可注释本行
+matplotlib.use("Agg")  # non-interactive backend; comment out this line to show windows
 import matplotlib.pyplot as plt
 
 from federated_survival.data.generator import DataGenerator, SimulationConfig
@@ -37,7 +37,7 @@ from federated_survival.core.runner import FSARunner
 from federated_survival.core.differential_privacy import DifferentialPrivacy
 
 
-# ===== 论文 proof 配置 =====
+# ===== Paper proof configuration =====
 SIM = "SDGM1"
 N_SAMPLES = 100
 N_FEATURES = 10
@@ -56,7 +56,7 @@ RANDOM_STATE = 42
 
 
 def make_config(use_dp):
-    """根据论文配置构造 FSAConfig"""
+    """Build FSAConfig from the paper configuration"""
     cfg = dict(
         num_clients=N_CLIENTS,
         n_features=N_FEATURES,
@@ -77,95 +77,95 @@ def make_config(use_dp):
             use_differential_privacy=True,
             dp_mechanism=DP_MECHANISM,
             dp_epsilon=DP_EPSILON,
-            dp_delta=1e-5,            # Gaussian 机制必需
+            dp_delta=1e-5,            # required by the Gaussian mechanism
             dp_sensitivity=1.0,
-            dp_noise_multiplier=1.0,  # Gaussian 机制必需
+            dp_noise_multiplier=1.0,  # required by the Gaussian mechanism
             dp_clip_norm=1.0,
         )
     return FSAConfig(**cfg)
 
 
 def describe_clients(dataset):
-    """打印各客户端样本数与删失率"""
+    """Print sample counts and censoring rates per client"""
     for cid, (X, y) in dataset.clients_set.items():
         n = len(y)
         censor_rate = 1.0 - float(np.mean(y[:, 1]))
-        print("    {}: 样本数={:<4d} 删失率={:.1%}".format(cid, n, censor_rate))
+        print("    {}: n_samples={:<4d} censoring_rate={:.1%}".format(cid, n, censor_rate))
 
 
 def main():
     print("=" * 64)
-    print("示例 10: 复现论文 proof 配置")
+    print("Example 10: Reproduce the paper's proof configuration")
     print("=" * 64)
 
-    # 1. 打印配置
-    print("\n[配置]")
-    print("  仿真:        {} (n={}, d={})".format(SIM, N_SAMPLES, N_FEATURES))
-    print("  划分:        {} alpha={}".format(SPLIT, ALPHA))
-    print("  客户端数:    {}".format(N_CLIENTS))
-    print("  模型:        {} num_nodes={}".format(MODEL, NUM_NODES))
-    print("  训练:        global={} local={} batch={}".format(
+    # 1. Print configuration
+    print("\n[Configuration]")
+    print("  Simulation:  {} (n={}, d={})".format(SIM, N_SAMPLES, N_FEATURES))
+    print("  Split:       {} alpha={}".format(SPLIT, ALPHA))
+    print("  Clients:     {}".format(N_CLIENTS))
+    print("  Model:       {} num_nodes={}".format(MODEL, NUM_NODES))
+    print("  Training:    global={} local={} batch={}".format(
         GLOBAL_EPOCHS, LOCAL_EPOCHS, BATCH_SIZE))
-    print("  隐私:        {} DP, epsilon={}".format(DP_MECHANISM, DP_EPSILON))
-    print("  对照:        同时跑一组 无 DP")
+    print("  Privacy:     {} DP, epsilon={}".format(DP_MECHANISM, DP_EPSILON))
+    print("  Baseline:    a no-DP run is also performed")
 
-    # 2. 生成数据 (SDGM1)
-    print("\n[1] 生成 SDGM1 仿真数据...")
+    # 2. Generate data (SDGM1)
+    print("\n[1] Generating SDGM1 simulation data...")
     gen = DataGenerator(SimulationConfig(
         n_samples=N_SAMPLES, n_features=N_FEATURES, random_state=RANDOM_STATE))
     data = gen.generate(SIM)
-    print("  数据形状: {}, 总删失率: {:.1%}, 事件数: {}".format(
+    print("  Data shape: {}, overall censoring rate: {:.1%}, events: {}".format(
         data.shape, 1.0 - float(data["status"].mean()), int(data["status"].sum())))
 
-    # 3. Dirichlet 划分 (alpha=0.8)
-    print("\n[2] Dirichlet 划分 (alpha={})...".format(ALPHA))
+    # 3. Dirichlet split (alpha=0.8)
+    print("\n[2] Dirichlet split (alpha={})...".format(ALPHA))
     splitter = DataSplitter(
         n_clients=N_CLIENTS, split_type=SPLIT, alpha=ALPHA,
         test_size=0.2, random_state=RANDOM_STATE)
     dataset = splitter.split(data)
-    print("  客户端分布:")
+    print("  Client distribution:")
     describe_clients(dataset)
-    print("  测试集形状: {}".format(dataset.test_data.shape))
+    print("  Test set shape: {}".format(dataset.test_data.shape))
 
-    # 4. 打印 DP 噪声规模 (Gaussian 机制)
-    print("\n[3] Gaussian DP 噪声参数:")
+    # 4. Print DP noise scale (Gaussian mechanism)
+    print("\n[3] Gaussian DP noise parameters:")
     dp_cfg = make_config(use_dp=True)
     dp = DifferentialPrivacy(dp_cfg)
     total_eps, per_round_eps = dp.compute_privacy_budget(
         num_rounds=GLOBAL_EPOCHS, num_clients=N_CLIENTS)
     noise_scale = dp.get_noise_scale(num_clients=N_CLIENTS)
-    print("    机制          = {}".format(dp_cfg.dp_mechanism))
+    print("    mechanism     = {}".format(dp_cfg.dp_mechanism))
     print("    epsilon       = {}".format(dp_cfg.dp_epsilon))
     print("    delta         = {}".format(dp_cfg.dp_delta))
     print("    sensitivity   = {}".format(dp_cfg.dp_sensitivity))
     print("    clip_norm     = {}".format(dp_cfg.dp_clip_norm))
-    print("    总 eps         = {:.4f}".format(total_eps))
-    print("    每轮 eps        = {:.4f}".format(per_round_eps))
-    print("    噪声规模 sigma = {:.4f} (考虑 {} 客户端)".format(
+    print("    total eps     = {:.4f}".format(total_eps))
+    print("    per-round eps = {:.4f}".format(per_round_eps))
+    print("    noise scale sigma = {:.4f} (with {} clients)".format(
         noise_scale, N_CLIENTS))
 
-    # 5. 训练: 有 DP vs 无 DP
+    # 5. Training: with DP vs without DP
     results_all = {}
     for label, use_dp in [("with DP (eps=1)", True), ("without DP", False)]:
-        print("\n[4] FedAvg 训练: {} ...".format(label))
+        print("\n[4] FedAvg training: {} ...".format(label))
         config = make_config(use_dp=use_dp)
         runner = FSARunner(config)
         results = runner.run(dataset, type="raw")
         results_all[label] = results
-        print("  训练 C-index 曲线: {}".format(
+        print("  train C-index curve: {}".format(
             ["{:.4f}".format(x) for x in results["train_Cindex"]]))
-        print("  测试 C-index 曲线: {}".format(
+        print("  test C-index curve:  {}".format(
             ["{:.4f}".format(x) for x in results["test_Cindex"]]))
-        print("  测试 IBS     曲线: {}".format(
+        print("  test IBS curve:      {}".format(
             ["{:.4f}".format(x) for x in results["test_IBS"]]))
-        print("  => 最终测试 C-index={:.4f}, IBS={:.4f}".format(
+        print("  => final test C-index={:.4f}, IBS={:.4f}".format(
             results["test_Cindex"][-1], results["test_IBS"][-1]))
 
-    # 6. 汇总对比
+    # 6. Summary comparison
     print("\n" + "=" * 64)
-    print("汇总对比:")
+    print("Summary comparison:")
     print("  {:<20s} {:>12s} {:>12s} {:>12s}".format(
-        "实验", "训练C-idx", "测试C-idx", "测试IBS"))
+        "Experiment", "Train C-idx", "Test C-idx", "Test IBS"))
     for label, res in results_all.items():
         print("  {:<20s} {:>12.4f} {:>12.4f} {:>12.4f}".format(
             label,
@@ -173,28 +173,28 @@ def main():
             res["test_Cindex"][-1],
             res["test_IBS"][-1]))
 
-    print("\n解读:")
-    print("  DP 通过梯度裁剪 + 噪声注入保护隐私, 通常以轻微性能下降为代价")
-    print("  n=100 小样本 + 20 local epochs 易过拟合, DP 噪声反而可能起正则化作用")
-    print("  若两组差异很小, 可能因小样本下模型本身拟合能力有限")
-    # 针对本次结果的具体诊断
+    print("\nInterpretation:")
+    print("  DP protects privacy via gradient clipping + noise injection, usually at the cost of a slight performance drop")
+    print("  With n=100 small samples + 20 local epochs, overfitting is likely; DP noise may instead act as regularization")
+    print("  If the two runs differ only slightly, it may be because the model's fitting capacity is limited on small samples")
+    # Specific diagnosis for this run's results
     dp_cindex = results_all["with DP (eps=1)"]["test_Cindex"][-1]
     if np.isnan(dp_cindex) or dp_cindex < 0.3:
-        print("\n  [诊断] 本配置下 Gaussian DP (eps=1) 导致模型崩溃:")
-        print("    - n=100 极小样本, 每客户端仅约 26 个训练样本")
-        print("    - eps=1 噪声规模较大 (sigma~2.8), 梯度信噪比极低")
-        print("    - 20 local epochs 使噪声累积, 模型输出溢出 (exp overflow)")
-        print("    - 缓解: 增大 eps / 增大 n / 减少 local epochs / 降低 lr")
+        print("\n  [Diagnosis] With this configuration, Gaussian DP (eps=1) causes model collapse:")
+        print("    - n=100 is an extremely small sample, only ~26 training samples per client")
+        print("    - eps=1 gives a large noise scale (sigma~2.8), so the gradient SNR is extremely low")
+        print("    - 20 local epochs let the noise accumulate, and model outputs overflow (exp overflow)")
+        print("    - Mitigation: increase eps / increase n / reduce local epochs / lower lr")
 
-    # 7. 可视化对比曲线
+    # 7. Visualize comparison curves
     fig, axes = plt.subplots(1, 2, figsize=(12, 4.5))
     rounds = range(1, GLOBAL_EPOCHS + 1)
     for label, res in results_all.items():
         cindex = np.array(res["test_Cindex"], dtype=float)
         ibs = np.array(res["test_IBS"], dtype=float)
-        # C-index: 直接画 (0 值也是有效信息)
+        # C-index: plot directly (zero values are also informative)
         axes[0].plot(rounds, cindex, marker="o", label=label)
-        # IBS: nan 用虚线断开
+        # IBS: break the line at nan
         valid = ~np.isnan(ibs)
         if valid.any():
             axes[1].plot(np.array(list(rounds))[valid], ibs[valid],
@@ -220,9 +220,9 @@ def main():
     plt.tight_layout()
     out_path = os.path.join(os.path.dirname(__file__), "10_reproduce_paper.png")
     plt.savefig(out_path, dpi=120)
-    print("\n对比曲线图已保存: {}".format(out_path))
+    print("\nComparison curves saved: {}".format(out_path))
 
-    print("\n=== 示例 10 完成 ===")
+    print("\n=== Example 10 Done ===")
 
 
 if __name__ == "__main__":

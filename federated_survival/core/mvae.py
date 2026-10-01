@@ -7,7 +7,13 @@ from torch.optim.lr_scheduler import StepLR
 
 
 class Encoder(nn.Module):
-    """编码器"""
+    """Encoder network mapping inputs to the VAE latent space.
+
+    Args:
+        input_dim: Number of input features.
+        hidden_dim: Number of units in the hidden layer.
+        output_dim: Number of output units.
+    """
 
     def __init__(self, input_dim: int, hidden_dim: int, output_dim: int):
         super(Encoder, self).__init__()
@@ -20,7 +26,13 @@ class Encoder(nn.Module):
 
 
 class Decoder(nn.Module):
-    """解码器"""
+    """Decoder network reconstructing feature data from the latent space.
+
+    Args:
+        input_dim: Number of input features (typically the latent dimension).
+        hidden_dim: Number of units in the hidden layer.
+        output_dim: Number of output units (typically the feature dimension).
+    """
 
     def __init__(self, input_dim: int, hidden_dim: int, output_dim: int):
         super(Decoder, self).__init__()
@@ -33,7 +45,13 @@ class Decoder(nn.Module):
 
 
 class DecoderTime(nn.Module):
-    """时间解码器"""
+    """Decoder network predicting event times from the latent space.
+
+    Args:
+        input_dim: Number of input features (typically the latent dimension).
+        hidden_dim: Number of units in the hidden layers.
+        output_dim: Number of output units. Defaults to 1.
+    """
 
     def __init__(self, input_dim: int, hidden_dim: int, output_dim: int = 1):
         super(DecoderTime, self).__init__()
@@ -48,7 +66,16 @@ class DecoderTime(nn.Module):
 
 
 class MVAE(nn.Module):
-    """变分自编码器"""
+    """Multi-task variational autoencoder (VAE) for survival data augmentation.
+
+    Args:
+        encoder: Encoder network producing the hidden representation.
+        decoder: Decoder network reconstructing feature data.
+        decoder_time: Decoder network predicting event times.
+        latent_dim: Dimension of the latent space.
+        encoder_out: Number of output units of the encoder, used as the
+            input dimension of the mean and variance heads.
+    """
 
     def __init__(
         self,
@@ -64,12 +91,12 @@ class MVAE(nn.Module):
         self.decoder_time = decoder_time
         self.latent_dim = latent_dim
 
-        # 两个全连接层用于生成均值和方差
+        # Two fully connected layers producing the mean and the variance
         self._enc_mu = nn.Linear(encoder_out, latent_dim)
         self._enc_log_sigma = nn.Linear(encoder_out, latent_dim)
 
     def _sample_latent(self, h_enc: torch.Tensor) -> torch.Tensor:
-        """从潜在空间采样"""
+        """Sample from the latent space."""
         mu = self._enc_mu(h_enc)
         log_sigma = self._enc_log_sigma(h_enc)
         sigma = torch.exp(log_sigma)
@@ -82,24 +109,24 @@ class MVAE(nn.Module):
         return self.z
 
     def forward(self, state: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        """前向传播"""
+        """Forward pass."""
         h_enc = self.encoder(state)
         z = self._sample_latent(h_enc)
         return self.decoder(z), self.decoder_time(z)
 
     def sample(self, sample_num: int) -> Tuple[np.ndarray, np.ndarray]:
-        """从潜在空间采样生成新样本"""
+        """Generate new samples by sampling from the latent space."""
         new_z = torch.randn(sample_num, self.latent_dim)
         vae_pre = (self.decoder(new_z), self.decoder_time(new_z))
         X_pre = vae_pre[0].detach().numpy()
         y_pre = vae_pre[1].detach().numpy()
-        y_pre = np.hstack((y_pre, np.ones_like(y_pre)))  # 添加status=1
+        y_pre = np.hstack((y_pre, np.ones_like(y_pre)))  # Append status=1
         return X_pre, y_pre
 
     def condition_sample(
         self, index: np.ndarray, sample_num: int, gamma: float = 0.1
     ) -> Tuple[np.ndarray, np.ndarray]:
-        """在指定训练样本的潜变量附近生成精确数量的新样本。"""
+        """Generate an exact number of new samples near the latent codes of the given training samples."""
         if sample_num < 0:
             raise ValueError("sample_num must be non-negative")
         index = np.asarray(index, dtype=int).reshape(-1)
@@ -122,30 +149,30 @@ class MVAE(nn.Module):
         new_z = target_z + gamma * torch.randn_like(target_z)
         new_X = self.decoder(new_z).detach().cpu().numpy()
         new_y = self.decoder_time(new_z).detach().cpu().numpy()
-        new_y = np.hstack((new_y, np.ones_like(new_y)))  # 添加status=1
+        new_y = np.hstack((new_y, np.ones_like(new_y)))  # Append status=1
         return new_X, new_y
 
     def generate(self, x: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-        """生成重构样本"""
+        """Generate reconstructed samples."""
         _x = torch.from_numpy(x).float()
         return self.forward(_x)
 
 
 def recon_mse(dec: torch.Tensor, X: torch.Tensor) -> torch.Tensor:
-    """重构损失"""
+    """Reconstruction loss."""
     diff_sq = torch.pow(dec - X, 2)
     return torch.mean(torch.sum(diff_sq, dim=1))
 
 
 def cmse(pre: torch.Tensor, time: torch.Tensor, status: torch.Tensor) -> torch.Tensor:
-    """条件均方误差"""
+    """Conditional mean squared error."""
     compare = (status == 1) | ((pre < time) & (status == 0))
     mse = torch.pow(pre - time, 2)
     return torch.mean(mse * compare.float())
 
 
 def latent_loss(z_mean: torch.Tensor, z_stddev: torch.Tensor) -> torch.Tensor:
-    """潜在空间损失"""
+    """Latent space (KL divergence) loss."""
     mean_sq = torch.pow(z_mean, 2)
     var = torch.pow(z_stddev, 2)
     return 0.5 * torch.sum(torch.mean(mean_sq + var - torch.log(var) - 1, dim=0))
@@ -165,23 +192,23 @@ def vae_train(
     gamma: float = 0.5,
 ) -> MVAE:
     """
-    训练MVAE模型
+    Train an MVAE model.
 
     Args:
-        train_X: 训练特征数据
-        train_y: 训练标签数据
-        latent_num: 潜在空间维度
-        hidden_num: 隐藏层维度
-        alpha: KL散度权重
-        beta: 条件损失权重
-        epochs: 训练轮数
-        lr: 学习率
-        weight_decay: 权重衰减
-        step_size: 学习率调整步长
-        gamma: 学习率衰减因子
+        train_X: Training feature data.
+        train_y: Training label data.
+        latent_num: Dimension of the latent space.
+        hidden_num: Dimension of the hidden layers.
+        alpha: Weight of the KL divergence loss.
+        beta: Weight of the conditional loss.
+        epochs: Number of training epochs.
+        lr: Learning rate.
+        weight_decay: Weight decay coefficient.
+        step_size: Step size for the learning rate scheduler.
+        gamma: Multiplicative decay factor of the learning rate.
 
     Returns:
-        MVAE: 训练好的MVAE模型
+        MVAE: The trained MVAE model.
     """
     input_dim = train_X.shape[1]
     encoder = Encoder(input_dim, hidden_num, hidden_num)
