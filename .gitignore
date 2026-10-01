@@ -92,3 +92,14 @@ site/
 
 # 本包的本地解压副本，防止被误加
 federated-survival-v0.7.0-software-paper/
+
+# ---------------------------------------------------------------------------
+# Local-only audit & defect reports (must never be published)
+# ---------------------------------------------------------------------------
+audit/
+bug-report-*.md
+federated_survival-architecture.html
+scripts/dp_privacy_audit.py
+
+# Generated experiment outputs
+examples/compare/result/

@@ -4,11 +4,13 @@ from .api import FederatedSurvival
 from .experiment_api import ExperimentResult, compare_experiments, compare_methods
 from .data import (
     augment_clients,
+    available_real_datasets,
     DataGenerator,
     DataLoader,
     DataSplitter,
     SimulationConfig,
     load_data,
+    load_real_data,
     partition_data,
     partition_data_many,
     plot_partition,
@@ -31,7 +33,7 @@ from .protocols import (
 )
 from .utils import calculate_cindex, calculate_ibs
 
-__version__ = "0.7.0"
+__version__ = "0.7.5"
 
 __all__ = [
     "FSAConfig",
@@ -46,6 +48,8 @@ __all__ = [
     "DataSplitter",
     "simulate_data",
     "load_data",
+    "load_real_data",
+    "available_real_datasets",
     "partition_data",
     "partition_data_many",
     "plot_partition",
