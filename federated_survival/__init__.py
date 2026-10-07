@@ -33,7 +33,7 @@ from .protocols import (
 )
 from .utils import calculate_cindex, calculate_ibs
 
-__version__ = "0.7.5"
+__version__ = "0.8.0"
 
 __all__ = [
     "FSAConfig",

@@ -44,7 +44,7 @@ TestPyPI is separate from production PyPI:
 ```bash
 python -m twine upload --repository testpypi dist/*
 python -m pip install --index-url https://test.pypi.org/simple/ \
-  --extra-index-url https://pypi.org/simple/ federated-survival==0.7.0
+  --extra-index-url https://pypi.org/simple/ federated-survival==0.8.0
 ```
 
 When that installation is verified, publish to production:
@@ -70,8 +70,8 @@ them with `twine check --strict`, checks that the tag matches the version in
 all three files attached.
 
 ```bash
-git tag -a v0.7.0 -m "federated-survival 0.7.0"
-git push origin v0.7.0
+git tag -a v0.8.0 -m "federated-survival 0.8.0"
+git push origin v0.8.0
 ```
 
 Release notes come from `.github/releases/<tag>.md` when that file exists;

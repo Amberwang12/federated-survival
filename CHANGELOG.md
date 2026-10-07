@@ -4,6 +4,97 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+## [0.8.0] - 2026-10-07
+
+### Fixed
+
+- **DP mechanism switches no longer leave a dead privacy control in silence.**
+  The Gaussian mechanism scales its noise with `dp_noise_multiplier` while the
+  Laplace mechanism uses `dp_epsilon`, so each one ignored the other's knob, and
+  `dp_delta` never reached the noise scale under either mechanism. Switching
+  `dp_mechanism` therefore turned a parameter that looked like an active privacy
+  control into an inert value with no diagnostic. Verified numerically before the
+  fix: under the Gaussian mechanism `dp_epsilon=1` and `dp_epsilon=1000`
+  produced bit-identical updates, and under the Laplace mechanism
+  `dp_noise_multiplier=0.5` and `99` did the same, while the documented driver of
+  each mechanism provably did change the noise.
+  `FSAConfig` now emits a `UserWarning` naming the ignored field, the value that
+  was set, and the field that actually controls the noise. Fields left at their
+  default stay silent so the warning keeps its signal. Both `get_privacy_info()`
+  implementations gained `noise_driver` and `inactive_parameters` so the state is
+  inspectable programmatically rather than only a transient message, and
+  `docs/privacy.md` documents which parameter drives each mechanism.
+  The mapping lives in `core/differential_privacy.py` as
+  `DP_MECHANISM_NOISE_KNOBS` / `DP_MECHANISM_INERT_KNOBS` with
+  `describe_noise_knobs()` as the single source of truth.
+  This is a purely observational change: `experiments/audit_dp_effect.py` and
+  `experiments/audit_reviewer_checks.py` reproduce their previous numbers
+  bit-for-bit.
+
+### Added
+
+- `tests/test_dp_inert_parameters.py` (30 cases): asserts at the numerical level
+  that an ignored field cannot change the noise and the driver field can, and at
+  the reporting level that the warning fires only for non-default ignored fields
+  and that both privacy-info surfaces name the driver.
+
+### Documentation
+
+- Documented the DP hyper-parameter ranges and the `sensitivity/√K` semantics in
+  `docs/privacy.md`, closing two outstanding review items without touching code.
+  The recommended range now comes from a measured dose-response sweep
+  (SDGM1, n=200, 3 clients, mean of seeds 0-2) rather than from recollection:
+  `dp_noise_multiplier` in [0.01, 0.1] with `dp_clip_norm = 1.0` stays within
+  noise of the no-DP baseline (0.5454), and the sweep shows where it collapses
+  (2.0 -> exactly 0.5000). Two points that were previously left implicit are now
+  stated: `dp_noise_multiplier * dp_clip_norm` is the product that actually sets
+  the injected noise, so tuning one while holding the other is a common way to
+  misread the setting; and the `1/sqrt(K)` factor is a variance-reduction
+  argument, not a privacy-accounting one, since central DP scales sensitivity
+  linearly in `1/K` and local DP does not divide by K at all. The section also
+  records that `add_noise_to_weights()` is not on the training path and that the
+  aggregation step adds no noise, and it notes that the `last_noise_to_signal`
+  diagnostics live on per-round client objects that are discarded, so they are
+  not reachable from `FederatedSurvival` or `FSARunner` after `fit()`.
+- Recorded the reviewer's outstanding items as resolved-by-decision rather than
+  open. `JCB-2026-0108_audit_checklist.md` section 4.2 is now split into what
+  will still be done (two paper-only edits, no code), what was deliberately
+  declined, and what is now covered by the package documentation. Declined: an
+  oracle ground-truth comparison, a significance test, and a second real
+  dataset. Rationale worth noting for the response letter: the oracle comparison
+  is only defined for simulated data and cannot be run on GBSG, which has no
+  ground truth, so it is not addressable by the real-data experiments that
+  already exist. The core-claim rewording is likewise a response-letter matter
+  rather than a code change.
+- Refreshed the reviewer-facing and packaging documents against the released
+  0.7.5 tree: `JCB-2026-0108_audit_checklist.md`, `PACKAGE_AUDIT.md`, and
+  `PACKAGE_STRUCTURE.md`. All three previously described 0.7.0 or a
+  pre-git snapshot.
+- `JCB-2026-0108_audit_checklist.md` now records a 0.7.5 re-verification of
+  every reviewer complaint. All six functional defects remain closed with
+  bit-identical measurements to 0.7.0 (IBS 0.2195 vs 0.3390, Dirichlet client
+  sizes `[81, 93, 66]`, `batch_size` 0.5863 vs 0.6129, `clip_norm` 0.6091 /
+  0.5930 / 0.5000), so the 0.7.1-0.7.5 work introduced no regression on any
+  code path the reviewers examined. Added the Center and Local columns for the
+  5-seed Figure-4 configuration, which makes the "federated substantially
+  outperforms local" claim weaker still (0.5643 vs 0.5632, a gap of 0.0011
+  against standard deviations of 0.08-0.10) and is now flagged as requiring a
+  rewording rather than a clarification. Section 4.3 documents the
+  inert-parameter fix and its numerical evidence.
+- `PACKAGE_AUDIT.md` closes the two largest 0.7.0 findings: the repository now
+  has real version control (147 tracked files, tags `v0.2.0`/`v0.7.0`/`v0.7.5`,
+  three CI workflows) and a `CHANGELOG.md`. The previously reported orphan
+  `federated_survival/data/real/gbsg.csv` is fixed - both bundled CSVs now ship
+  in the wheel and sdist, confirmed by unpacking the built artifacts. Remaining
+  gaps are `CITATION.cff`, the three community health files, and the absence of
+  any lint configuration.
+- `PACKAGE_STRUCTURE.md` documents the 0.7.5 layout, including the bundled real
+  datasets, the `references.optimizer_steps` budget-matching default, the
+  log-space survival evaluation, and the note that `federated_survival/examples/`
+  is intentionally outside coverage reporting.
+
 ## [0.7.5] - 2026-10-01
 
 ### Added
