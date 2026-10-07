@@ -8,6 +8,57 @@ from typing import Dict, Tuple, Optional
 import math
 
 
+#: Which configuration field actually sets the noise magnitude for each
+#: mechanism, and which configured fields cannot influence the injected noise.
+#:
+#: The two mechanisms are driven by *different* knobs: the Gaussian scale is
+#: ``dp_noise_multiplier * dp_sensitivity`` while the Laplace scale is
+#: ``dp_sensitivity / dp_epsilon``.  Switching ``dp_mechanism`` therefore turns
+#: the previously effective knob into an inert one, and vice versa.  Every
+#: value below is asserted against the noise the mechanisms really add by
+#: ``tests/test_dp_inert_parameters.py``.
+DP_MECHANISM_NOISE_KNOBS: Dict[str, str] = {
+    "gaussian": "dp_noise_multiplier",
+    "laplace": "dp_epsilon",
+    "exponential": "dp_epsilon",
+}
+
+#: Fields that are accepted by :class:`~federated_survival.core.config.FSAConfig`
+#: and reported by ``get_privacy_info()`` but that never reach the noise added
+#: to a model update.  ``dp_delta`` belongs here for every mechanism: the noise
+#: scale does not depend on it, and the only reader is
+#: :meth:`DifferentialPrivacy.convert_renyi_to_epsilon`, which has no production
+#: caller.
+DP_MECHANISM_INERT_KNOBS: Dict[str, Tuple[str, ...]] = {
+    "gaussian": ("dp_epsilon", "dp_delta"),
+    "laplace": ("dp_noise_multiplier", "dp_delta"),
+    "exponential": ("dp_noise_multiplier", "dp_delta"),
+}
+
+
+def describe_noise_knobs(mechanism: str) -> Dict[str, object]:
+    """Report which configuration knobs drive the noise for ``mechanism``.
+
+    Args:
+        mechanism: One of ``'gaussian'``, ``'laplace'``, ``'exponential'``.
+
+    Returns:
+        dict with the name of the field that sets the noise magnitude
+        (``noise_knob``) and the configured fields that cannot change it
+        (``inert_knobs``).
+    """
+    key = str(mechanism).lower()
+    if key not in DP_MECHANISM_NOISE_KNOBS:
+        raise ValueError(
+            f"mechanism must be one of {sorted(DP_MECHANISM_NOISE_KNOBS)}"
+        )
+    return {
+        "noise_knob": DP_MECHANISM_NOISE_KNOBS[key],
+        "inert_knobs": DP_MECHANISM_INERT_KNOBS[key],
+    }
+
+
+
 class DifferentialPrivacy:
     """Differential privacy utilities.
 
@@ -36,6 +87,21 @@ class DifferentialPrivacy:
         self.last_clipped_update_norm: float = 0.0
         self.last_noise_sigma: float = 0.0
         self.last_noise_to_signal: float = 0.0
+
+    def inactive_parameters(self) -> Tuple[str, ...]:
+        """Return the configured DP fields that cannot influence this mechanism.
+
+        The Gaussian mechanism scales its noise with ``dp_noise_multiplier`` and
+        the Laplace mechanism with ``dp_epsilon``, so each one ignores the
+        other's knob.  ``dp_delta`` is inert for every mechanism because the
+        noise scale does not depend on it.  Switching ``dp_mechanism`` silently
+        swaps which parameter is effective, which is the hazard reported here.
+        """
+        return DP_MECHANISM_INERT_KNOBS[self.config.dp_mechanism]
+
+    def noise_driver(self) -> str:
+        """Return the name of the configuration field that sets the noise scale."""
+        return DP_MECHANISM_NOISE_KNOBS[self.config.dp_mechanism]
         
     def add_gaussian_noise(self, tensor: torch.Tensor, sensitivity: Optional[float] = None) -> torch.Tensor:
         """

@@ -204,6 +204,9 @@ class FederatedSurvival:
         config = self.config
         if not config.use_differential_privacy:
             return {"enabled": False, "formal_accounting_available": False}
+        from .core.differential_privacy import describe_noise_knobs
+
+        knobs = describe_noise_knobs(config.dp_mechanism)
         return {
             "enabled": True,
             "mechanism": config.dp_mechanism,
@@ -218,6 +221,12 @@ class FederatedSurvival:
             ),
             "formal_accounting_available": False,
             "privacy_scope": "experimental clipped client-update perturbation",
+            # The Gaussian scale follows dp_noise_multiplier and the Laplace
+            # scale follows dp_epsilon, so the reported epsilon is not the
+            # noise control under Gaussian.  Naming the driver and the ignored
+            # fields keeps that from being misread.
+            "noise_driver": knobs["noise_knob"],
+            "inactive_parameters": list(knobs["inert_knobs"]),
         }
 
     def _prepare_dataset(

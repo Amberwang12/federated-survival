@@ -471,6 +471,11 @@ class FSARunner:
             "per_round_epsilon": per_round_epsilon,
             "formal_accounting_available": False,
             "privacy_scope": "experimental clipped client-update perturbation",
+            # Which configured field actually scales the noise, and which
+            # configured fields this mechanism ignores.  Reporting both keeps
+            # the reported epsilon from being read as the noise control.
+            "noise_driver": dp_tool.noise_driver(),
+            "inactive_parameters": list(dp_tool.inactive_parameters()),
         }
 
         # Add Gaussian mechanism specific parameters

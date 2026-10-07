@@ -246,6 +246,21 @@ class FSAConfig:
                 if self.dp_clip_norm <= 0:
                     raise ValueError("dp_clip_norm must be positive")
 
+            # Warn when a configured DP field cannot influence the selected
+            # mechanism.  The Gaussian noise scale is driven by
+            # dp_noise_multiplier and the Laplace scale by dp_epsilon, so
+            # switching dp_mechanism turns one of them into an inert value that
+            # looks like a working privacy control.  dp_delta never affects the
+            # noise scale either.  See core.differential_privacy for the
+            # authoritative mapping.
+            from .differential_privacy import DP_MECHANISM_INERT_KNOBS
+
+            inert = DP_MECHANISM_INERT_KNOBS[self.dp_mechanism]
+            driver = (
+                "dp_noise_multiplier" if self.dp_mechanism == "gaussian" else "dp_epsilon"
+            )
+            self._warn_inactive_dp_parameters(inert, driver)
+
         # Set default model parameters
         if not self.model_params:
             if self.model_type == "PC-Hazard":
@@ -260,3 +275,35 @@ class FSAConfig:
                 self.model_params = {"l2_reg": 0.01}
             elif self.model_type == "CoxCC":
                 self.model_params = {"l2_reg": 0.01}
+
+    def _warn_inactive_dp_parameters(self, inert, driver) -> None:
+        """Emit one warning per inert DP field that was set away from its default.
+
+        A field left at its default cannot mislead anyone, so it is silent.  The
+        warning fires only when the user has actually chosen a non-default value
+        for a parameter that the selected mechanism ignores.
+        """
+        import warnings
+        from dataclasses import MISSING, fields as dataclass_fields
+
+        defaults = {}
+        for f in dataclass_fields(self):
+            if f.default is not MISSING:
+                defaults[f.name] = f.default
+            elif f.default_factory is not MISSING:  # type: ignore[misc]
+                defaults[f.name] = f.default_factory()  # type: ignore[misc]
+
+        for name in inert:
+            value = getattr(self, name, None)
+            default = defaults.get(name)
+            if default is not None and value == default:
+                # Untouched default: not an active misconfiguration.
+                continue
+            warnings.warn(
+                f"dp_mechanism='{self.dp_mechanism}' does not use {name} "
+                f"(currently {value!r}); the injected noise is controlled by "
+                f"{driver}. Setting {name} has no effect on the noise added to "
+                f"model updates. Switch dp_mechanism or adjust {driver} instead.",
+                UserWarning,
+                stacklevel=4,
+            )
